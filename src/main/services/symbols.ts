@@ -7,10 +7,28 @@ import { searchYahoo } from './yahoo';
 
 const MAX_RESULTS = 8;
 
+const SYMBOL_ALIASES: Record<string, string> = {
+  // US Futures
+  MNQ: 'MNQ=F',
+  NQ: 'NQ=F',
+  ES: 'ES=F',
+  YM: 'YM=F',
+  // Asian Indices
+  NIKKEI: '^N225',
+  N225: '^N225',
+  KOSPI: '^KS11',
+  'KOSPI COMPOSITE': '^KS11',
+  HANGSENG: '^HSI',
+  'HANG SENG': '^HSI',
+  HSI: '^HSI',
+};
+
 function mapQuoteType(quoteType: string | undefined): InstrumentType | null {
   const t = (quoteType ?? '').toUpperCase();
   if (t === 'ETF') return 'etf';
   if (t === 'EQUITY') return 'stock';
+  if (t === 'INDEX') return 'index';
+  if (t === 'FUTURE' || t === 'FUTURES') return 'future';
   return null;
 }
 
@@ -42,6 +60,13 @@ export function searchDirectory(query: string): SymbolSuggestion[] {
 
 export async function searchSymbols(query: string): Promise<SymbolSuggestion[]> {
   const q = query.trim().slice(0, 48);
+  const upperQ = q.toUpperCase();
+  const aliased = SYMBOL_ALIASES[upperQ] || SYMBOL_ALIASES[q.trim()];
+    if (aliased) {
+      // Replace the query with the real Yahoo symbol so search works
+      query = aliased;
+    }
+    
   if (!q) return [];
   try {
     const quotes = await searchYahoo(q);

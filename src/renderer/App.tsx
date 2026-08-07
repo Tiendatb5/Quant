@@ -6,6 +6,7 @@ import { CenterTabs } from './components/CenterTabs';
 import { EarningsCalendar } from './components/EarningsCalendar';
 import { ChartModal } from './components/ChartModal';
 import { OnboardingWizard } from './components/OnboardingWizard';
+import TradingTimeInfo  from  './components/TradingTimeInfo';
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -45,8 +46,33 @@ function Shell() {
       <main className="center-slot" aria-label="Workspace">
         <CenterTabs />
       </main>
-      <section className="right-slot" aria-label="Earnings calendar">
-        <EarningsCalendar />
+      <section className="right-slot" aria-label="Earnings calendar and market session">
+        {/* Top half: Earnings */}
+        <div
+          style={{
+            flex: '1 1 50%',
+            minHeight: 0,
+            overflow: 'hidden',          // was 'auto' — clip to half
+            display: 'flex',
+            flexDirection: 'column',
+            borderBottom: '1px solid var(--border-subtle, #333)',
+          }}
+        >
+          <EarningsCalendar />
+        </div>
+
+        {/* Bottom half: TradingTimeInfo */}
+        <div
+          style={{
+            flex: '1 1 50%',
+            minHeight: 0,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <TradingTimeInfo />
+        </div>
       </section>
       {state.modalSymbol && (
         <ChartModal key={state.modalSymbol} symbol={state.modalSymbol} />

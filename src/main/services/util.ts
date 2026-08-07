@@ -3,7 +3,8 @@
 // limiting, and date helpers.
 
 /** Ticker symbols we accept anywhere in the app (watchlist, IPC inputs). */
-export const SYMBOL_RE = /^[A-Z0-9.^-]{1,12}$/i;
+// Added = to allow raw Yahoo Finance futures symbols like NQ=F
+export const SYMBOL_RE = /^[A-Z0-9.=^-]{1,12}$/i;
 
 /** Normalize an unknown value to an uppercase validated symbol, or null. */
 export function normalizeSymbol(raw: unknown): string | null {

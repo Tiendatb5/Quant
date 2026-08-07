@@ -9,6 +9,25 @@ import type {
   StrategyEvidence,
 } from './strategy';
 
+// src/shared/marketPulse.ts  (append)
+export const MARKET_LEADERS = [
+  { symbol: 'NVDA', label: 'NVIDIA' },
+  { symbol: 'AAPL', label: 'Apple' },
+  { symbol: 'MSFT', label: 'Microsoft' },
+  { symbol: 'AMZN', label: 'Amazon' },
+  { symbol: 'GOOGL', label: 'Alphabet' },
+  { symbol: 'META', label: 'Meta' },
+  { symbol: 'AVGO', label: 'Broadcom' },
+  { symbol: 'TSLA', label: 'Tesla' },
+  { symbol: 'COST', label: 'Costco' },
+  { symbol: 'AMD', label: 'AMD' },
+  { symbol: 'NFLX', label: 'Netflix' },
+  { symbol: 'ADBE', label: 'Adobe' },
+  // Add/remove as needed (top ~14 by weight)
+] as const;
+
+export type MarketLeaderSymbol = (typeof MARKET_LEADERS)[number]['symbol'];
+
 export const MARKET_PULSE_ASSETS = [
   { symbol: 'SPY', label: 'S&P 500', role: 'Broad equities' },
   { symbol: 'QQQ', label: 'Nasdaq 100', role: 'Growth' },

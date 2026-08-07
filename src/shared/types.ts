@@ -4,7 +4,7 @@
 // updates to src/main/preload.ts, the IPC handlers in src/main, and
 // every renderer caller.
 
-export type InstrumentType = 'etf' | 'stock';
+export type InstrumentType = 'etf' | 'stock' | 'index' | 'future';
 
 /** Where a payload came from. 'sample' means bundled/offline fallback data —
  *  the UI must surface this so the user is never misled by stale numbers. */
@@ -73,8 +73,8 @@ export interface EarningsEvent {
   source: DataSource;
 }
 
-export type ChartRange = '1d' | '1w' | '1m' | '3m' | '6m' | '1y' | '5y' | 'max';
-export const CHART_RANGES: ChartRange[] = ['1d', '1w', '1m', '3m', '6m', '1y', '5y', 'max'];
+export type ChartRange = '1m' | '5m' | '30m' | '60m' | '1d' | '1w' | '1M' | '3m' | '6m' | '1y' | '5y' | 'max';
+export const CHART_RANGES: ChartRange[] = ['1m', '5m', '30m', '60m', '1d', '1w', '1M', '3m', '6m', '1y', '5y', 'max'];
 
 export interface Candle {
   time: number; // unix seconds, UTC

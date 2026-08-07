@@ -3,7 +3,7 @@
 // Skeleton rows while the persisted watchlist loads; a helpful empty state
 // when nothing is tracked yet.
 
-import '../styles/watchlist.css';
+import '../styles/watchlist';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { HoldingsResult, Quote, WatchlistItem } from '../../shared/types';
@@ -255,7 +255,16 @@ export function Watchlist() {
     () => state.watchlist.filter((i) => i.type === 'stock'),
     [state.watchlist],
   );
-  const displayedItems = useMemo(() => [...etfs, ...stocks], [etfs, stocks]);
+    const futures = useMemo(                     // ← ADD THIS
+    () => state.watchlist.filter((i) => i.type === 'future'),
+    [state.watchlist],
+  );
+    const indexs = useMemo(                     // ← ADD THIS
+    () => state.watchlist.filter((i) => i.type === 'index'),
+    [state.watchlist],
+  );
+
+  const displayedItems = useMemo(() => [...etfs, ...stocks, ...futures, ...indexs], [etfs, stocks, futures, indexs]);
 
   const onOpen = useCallback(
     (symbol: string) => actions.openChart(symbol),
@@ -429,6 +438,34 @@ export function Watchlist() {
               onPointerDragEnd={onPointerDragEnd}
               onKeyboardMove={onKeyboardMove}
             />
+              <Section
+              label="Indexs"
+              items={indexs}
+              quotes={state.quotes}
+              holdings={state.holdings}
+              onOpen={onOpen}
+              draggingSymbol={draggingSymbol}
+              dropTarget={dropTarget}
+              onContextMenu={openContextMenu}
+              onPointerDragStart={onPointerDragStart}
+              onPointerDragMove={onPointerDragMove}
+              onPointerDragEnd={onPointerDragEnd}
+              onKeyboardMove={onKeyboardMove}
+            />
+              <Section
+              label="Future"
+              items={futures}
+              quotes={state.quotes}
+              holdings={state.holdings}
+              onOpen={onOpen}
+              draggingSymbol={draggingSymbol}
+              dropTarget={dropTarget}
+              onContextMenu={openContextMenu}
+              onPointerDragStart={onPointerDragStart}
+              onPointerDragMove={onPointerDragMove}
+              onPointerDragEnd={onPointerDragEnd}
+              onKeyboardMove={onKeyboardMove}
+            />
           </>
         )}
       </div>
@@ -438,6 +475,10 @@ export function Watchlist() {
           <>
             <span className="num">{etfs.length}</span>{' '}
             {etfs.length === 1 ? 'ETF' : 'ETFs'} ·{' '}
+            <span className="num">{indexs.length}</span>{' '}
+            {etfs.length === 1 ? 'index' : 'indexs'} ·{' '}
+            <span className="num">{etfs.length}</span>{' '}
+            {etfs.length === 1 ? 'future' : 'futures'} ·{' '}
             <span className="num">{stocks.length}</span>{' '}
             {stocks.length === 1 ? 'stock' : 'stocks'} tracked
           </>

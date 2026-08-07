@@ -4,6 +4,11 @@
     "asOf": "2026-06"
   },
   "symbols": [
+    { "symbol": "NQ=F", "name": "Nasdaq 100 E-mini Futures", "type": "future", "exchange": "CME" },
+    { "symbol": "MNQ=F", "name": "Micro E-mini Nasdaq 100 Futures", "type": "future", "exchange": "CME" },
+    { "symbol": "^N225", "name": "Nikkei 225", "type": "stock", "exchange": "Osaka" },
+    { "symbol": "^KS11", "name": "KOSPI Composite Index", "type": "stock", "exchange": "KRX" },
+    { "symbol": "^HSI", "name": "Hang Seng Index", "type": "stock", "exchange": "HKEX" },
     { "symbol": "SPY", "name": "SPDR S&P 500 ETF Trust", "type": "etf", "exchange": "NYSEArca" },
     { "symbol": "VOO", "name": "Vanguard S&P 500 ETF", "type": "etf", "exchange": "NYSEArca" },
     { "symbol": "IVV", "name": "iShares Core S&P 500 ETF", "type": "etf", "exchange": "NYSEArca" },

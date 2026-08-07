@@ -1,0 +1,155 @@
+.ml-lower-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.ml-box {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.ml-movers-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.ml-movers-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.ml-mover-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.ml-mover-sym {
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.ml-mover-pct.up {
+  color: #1fbf75;
+  font-weight: 600;
+}
+
+.ml-mover-pct.down {
+  color: #f0435c;
+  font-weight: 600;
+}
+
+.lead-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.lead-tile {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.lead-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #cbd5e1;
+}
+
+.ml-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 20px 0 12px;
+}
+
+.ml-box-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.ml-mover-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.ml-mover-label-text {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+
+.ml-panel {
+  height: 100%;
+  min-height: 0;           /* Allows nested flex/grid elements to shrink */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ml-scroll-area {
+  flex: 1 1 0%;            /* Grow, shrink, and set base basis to 0 */
+  min-height: 0;           /* CRITICAL: Overrides 'min-height: auto' */
+  overflow-y: auto;        /* Triggers scrolling */
+  padding-bottom: 24px;
+}
+
+.ml-panel,
+.ml-scroll-area {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Make sure the lower grid doesn't force overflow */
+.ml-lower-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+  margin-bottom: 24px;
+}
+
+.ct-panel,
+.ct-view,
+.center-tabs {
+  height: 100%;
+  overflow: hidden;          /* keep the outer one hidden */
+}
+
+.ct-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Make the actual content area scroll */
+.ct-view > * {
+  flex: 1;
+  min-height: 0;             /* ← this is the critical line */
+  overflow: hidden;
+}
+
+.ml-header .cp-refresh,
+.ml-box-header .cp-refresh {
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.ml-box-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
