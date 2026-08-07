@@ -1,5 +1,11 @@
 import type { LlmProvider } from './types';
 
+// Connection probes must leave enough budget for reasoning-capable models to
+// produce visible text. OpenAI's max_completion_tokens includes reasoning
+// tokens, while local OpenAI-compatible servers use the same value as the
+// output-token limit.
+export const LLM_CONNECTION_TEST_MAX_TOKENS = 128;
+
 export interface LlmProviderDefinition {
   id: LlmProvider;
   label: string;

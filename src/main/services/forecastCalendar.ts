@@ -11,11 +11,13 @@ const SESSION_BAR_START_MINUTES = [
   12 * 60 + 30,
   13 * 60 + 30,
   14 * 60 + 30,
+  15 * 60 + 30,
 ] as const;
 const EARLY_CLOSE_BAR_START_MINUTES = [
   9 * 60 + 30,
   10 * 60 + 30,
   11 * 60 + 30,
+  12 * 60 + 30,
 ] as const;
 
 interface LocalDate {

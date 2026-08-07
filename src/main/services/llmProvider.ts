@@ -1,4 +1,5 @@
 import type { LlmConnectionResult } from '../../shared/types';
+import { LLM_CONNECTION_TEST_MAX_TOKENS } from '../../shared/llm';
 import type { ResolvedLlmSettings } from './llmSettings';
 
 interface OpenAiChatResponse {
@@ -87,7 +88,13 @@ export async function completeLlm(
 export async function testLlmConnection(settings: ResolvedLlmSettings): Promise<LlmConnectionResult> {
   const started = Date.now();
   try {
-    const answer = await completeLlm(settings, 'This is a connection check.', 'Reply with OK only.', 8, 20_000);
+    const answer = await completeLlm(
+      settings,
+      'This is a connection check.',
+      'Reply with OK only.',
+      LLM_CONNECTION_TEST_MAX_TOKENS,
+      20_000,
+    );
     return {
       ok: true,
       provider: settings.provider,

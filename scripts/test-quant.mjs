@@ -697,8 +697,9 @@ const fridayCalendar = forecastCalendar.nextUsMarketBarTimestamps({
 assert.equal(fridayCalendar.timestamps.length, 24);
 assert.equal(fridayCalendar.timestamps[0], '2026-07-20T13:30:00.000Z');
 assert.equal(fridayCalendar.timestamps[5], '2026-07-20T18:30:00.000Z');
-assert.equal(fridayCalendar.timestamps[6], '2026-07-21T13:30:00.000Z');
-assert.equal(fridayCalendar.timestamps[23], '2026-07-23T18:30:00.000Z');
+assert.equal(fridayCalendar.timestamps[6], '2026-07-20T19:30:00.000Z');
+assert.equal(fridayCalendar.timestamps[7], '2026-07-21T13:30:00.000Z');
+assert.equal(fridayCalendar.timestamps[23], '2026-07-23T15:30:00.000Z');
 assert.equal(new Set(fridayCalendar.timestamps).size, 24);
 assert.equal(fridayCalendar.assumptions.exchange, 'NYSEArca');
 assert.equal(fridayCalendar.assumptions.timezone, 'America/New_York');
@@ -716,14 +717,14 @@ assert.equal(
     ['2026-07-20T19:30:00.000Z'],
     'America/New_York',
   ),
-  false,
+  true,
 );
 assert.equal(
   forecastCalendar.validateUsMarketBarTimestamps(
     ['2026-11-27T17:30:00.000Z'],
     'America/New_York',
   ),
-  false,
+  true,
 );
 
 const weekendCalendar = forecastCalendar.nextUsMarketBarTimestamps({
@@ -744,31 +745,31 @@ assert.deepEqual(
 
 const thanksgivingEarlyCloseCalendar =
   forecastCalendar.nextUsMarketBarTimestamps({
-    afterTimestamp: '2026-11-25T19:30:00.000Z',
+    afterTimestamp: '2026-11-25T20:30:00.000Z',
     count: 4,
   });
 assert.deepEqual(thanksgivingEarlyCloseCalendar.timestamps, [
   '2026-11-27T14:30:00.000Z',
   '2026-11-27T15:30:00.000Z',
   '2026-11-27T16:30:00.000Z',
-  '2026-11-30T14:30:00.000Z',
+  '2026-11-27T17:30:00.000Z',
 ]);
 
 const christmasEveEarlyCloseCalendar =
   forecastCalendar.nextUsMarketBarTimestamps({
-    afterTimestamp: '2026-12-23T19:30:00.000Z',
+    afterTimestamp: '2026-12-23T20:30:00.000Z',
     count: 4,
   });
 assert.deepEqual(christmasEveEarlyCloseCalendar.timestamps, [
   '2026-12-24T14:30:00.000Z',
   '2026-12-24T15:30:00.000Z',
   '2026-12-24T16:30:00.000Z',
-  '2026-12-28T14:30:00.000Z',
+  '2026-12-24T17:30:00.000Z',
 ]);
 
 const saturdayNewYearCalendar =
   forecastCalendar.nextUsMarketBarTimestamps({
-    afterTimestamp: '2027-12-30T19:30:00.000Z',
+    afterTimestamp: '2027-12-30T20:30:00.000Z',
     count: 1,
   });
 assert.deepEqual(
@@ -3127,6 +3128,7 @@ assert.ok(signalScan.signals.some((s) => s.kind === 'ma-alignment'));
 assert.equal(llm.providerDefinition('local').baseUrl, 'http://127.0.0.1:8080/v1');
 assert.equal(llm.providerDefinition('claude').requiresApiKey, true);
 assert.equal(llm.normalizeApiBaseUrl('https://api.openai.com/v1///'), 'https://api.openai.com/v1');
+assert.equal(llm.LLM_CONNECTION_TEST_MAX_TOKENS, 128);
 
 const pulseCharts = marketPulse.MARKET_PULSE_ASSETS.map((asset, assetIndex) => ({
   symbol: asset.symbol,

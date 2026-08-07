@@ -187,7 +187,9 @@ function updateMacPlist(appPath) {
   plist = plist
     .replace(/<key>CFBundleName<\/key>\s*<string>[^<]+<\/string>/, `<key>CFBundleName</key>\n\t<string>${productName}</string>`)
     .replace(/<key>CFBundleDisplayName<\/key>\s*<string>[^<]+<\/string>/, `<key>CFBundleDisplayName</key>\n\t<string>${productName}</string>`)
-    .replace(/<key>CFBundleIdentifier<\/key>\s*<string>[^<]+<\/string>/, '<key>CFBundleIdentifier</key>\n\t<string>com.quant.desktop</string>');
+    .replace(/<key>CFBundleIdentifier<\/key>\s*<string>[^<]+<\/string>/, '<key>CFBundleIdentifier</key>\n\t<string>com.quant.desktop</string>')
+    .replace(/<key>CFBundleShortVersionString<\/key>\s*<string>[^<]+<\/string>/, `<key>CFBundleShortVersionString</key>\n\t<string>${version}</string>`)
+    .replace(/<key>CFBundleVersion<\/key>\s*<string>[^<]+<\/string>/, `<key>CFBundleVersion</key>\n\t<string>${version}</string>`);
   if (!plist.includes('<key>CFBundleDisplayName</key>')) {
     plist = plist.replace(
       '</dict>',

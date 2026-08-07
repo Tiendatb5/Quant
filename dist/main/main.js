@@ -1336,12 +1336,14 @@ var SESSION_BAR_START_MINUTES = [
   11 * 60 + 30,
   12 * 60 + 30,
   13 * 60 + 30,
-  14 * 60 + 30
+  14 * 60 + 30,
+  15 * 60 + 30
 ];
 var EARLY_CLOSE_BAR_START_MINUTES = [
   9 * 60 + 30,
   10 * 60 + 30,
-  11 * 60 + 30
+  11 * 60 + 30,
+  12 * 60 + 30
 ];
 var ForecastCalendarFailure = class extends Error {
   code = "MARKET_CALENDAR_FAILED";
@@ -3554,6 +3556,7 @@ var import_node_fs4 = __toESM(require("node:fs"));
 var import_node_path5 = __toESM(require("node:path"));
 
 // src/shared/llm.ts
+var LLM_CONNECTION_TEST_MAX_TOKENS = 128;
 var LLM_PROVIDERS = [
   {
     id: "local",
@@ -3785,7 +3788,7 @@ async function completeLlm(settings, system, user, maxTokens, timeoutMs = 45e3) 
 async function testLlmConnection(settings) {
   const started = Date.now();
   try {
-    const answer = await completeLlm(settings, "This is a connection check.", "Reply with OK only.", 8, 2e4);
+    const answer = await completeLlm(settings, "This is a connection check.", "Reply with OK only.", LLM_CONNECTION_TEST_MAX_TOKENS, 2e4);
     return {
       ok: true,
       provider: settings.provider,
