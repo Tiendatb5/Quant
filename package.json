@@ -53,6 +53,6 @@
   },
   "allowScripts": {
     "electron@31.7.7": true,
-    "esbuild@0.23.1": true
+    "esbuild@0.28.1": true
   }
 }
