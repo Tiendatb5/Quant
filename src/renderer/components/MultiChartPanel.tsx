@@ -1,19 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ColorType,
-  CrosshairMode,
-  createChart,
-} from 'lightweight-charts';
-import type {
-  CandlestickData,
-  IChartApi,
-  ISeriesApi,
-  Time,
-  UTCTimestamp,
-} from 'lightweight-charts';
+import {  ColorType,  CrosshairMode,  createChart,} from 'lightweight-charts';
+import type {  CandlestickData,  IChartApi,  ISeriesApi,  Time,  UTCTimestamp,} from 'lightweight-charts';
 import type { ChartData, ChartRange, Quote, WatchlistItem } from '../../shared/types';
 import { api } from '../api';
 import '../styles/analysis.css';
+import {CHART_RANGES } from '../../shared/types';
 
 const C = {
   text: '#9aa6bd',
@@ -23,7 +14,7 @@ const C = {
   accent: '#4d7ef7',
 } as const;
 
-const RANGES: ChartRange[] = ['1m', '3m', '1y'];
+const RANGES: ChartRange[] = ['1m', '5m', '30m', '60m', '1d', '3d','1W', '1M', '3M', '6M', '1Y', 'max'];
 
 function pct(value: number | null | undefined): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return 'n/a';
@@ -190,7 +181,7 @@ export function MultiChartPanel({
   );
   const [range, setRange] = useState<ChartRange>(() => {
     const smokeRange = new URLSearchParams(window.location.search).get('smokeChartRange');
-    return smokeRange === '3m' || smokeRange === '1y' ? smokeRange : '1m';
+    return CHART_RANGES.includes(smokeRange as ChartRange) ? (smokeRange as ChartRange) : '1d';
   });
 
   const watchSymbols = useMemo(() => watchlist.map((item) => item.symbol), [watchlist]);

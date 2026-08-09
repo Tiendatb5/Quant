@@ -42,7 +42,7 @@ function isValidItem(value: unknown): value is WatchlistItem {
     normalizeSymbol(item.symbol) !== null &&
     typeof item.name === 'string' &&
     item.name.length > 0 &&
-    (item.type === 'etf' || item.type === 'stock') &&
+    (item.type === 'etf' || item.type === 'stock' || item.type === 'index' || item.type === 'future') &&
     typeof item.addedAt === 'string'
   );
 }

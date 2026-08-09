@@ -49,7 +49,7 @@ async function resolveAssetType(
   const exact = suggestions.find(
     (suggestion) => suggestion.symbol.toUpperCase() === symbol.toUpperCase(),
   );
-  if (!exact) throw new Error(`Could not verify ${symbol} as a supported stock or ETF.`);
+  if (!exact) throw new Error(`Could not verify ${symbol} as a supported Stock or ETF or Index or Future.`);
   return exact.type;
 }
 

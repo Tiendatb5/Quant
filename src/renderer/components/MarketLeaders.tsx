@@ -7,7 +7,7 @@ import '../styles/market-leaders.css';
 import '../styles/pulse.css';
 import { IconRefresh } from './center/icons';
 
-const TIMEFRAMES: ChartRange[] = ['1m', '5m', '30m', '60m', '1d', '1w', '1M'];
+const TIMEFRAMES: ChartRange[] = ['1m', '5m', '30m', '60m', '1d', '3d','1W', '1M', '3M'];
 const SECTOR_ETFS = [
   { symbol: 'XLK', label: 'Technology' },
   { symbol: 'XLF', label: 'Financials' },

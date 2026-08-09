@@ -248,7 +248,7 @@ export function AddSymbol() {
                       <span className="wl-opt-name">{s.name}</span>
                       {isWatched && <span className="wl-opt-added">Added</span>}
                       <span className={`wl-opt-badge ${s.type}`}>
-                        {s.type === 'etf' ? 'ETF' : 'Stock'}
+                        {s.type === 'etf'? 'ETF': s.type === 'stock'? 'Stock': s.type === 'index'? 'Index': 'Future'}
                       </span>
                     </li>
                   );

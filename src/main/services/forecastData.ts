@@ -148,15 +148,16 @@ function normalizeForecastCandles(
     completedEnd -= 1;
   }
 
-  const completedCount = completedEnd;
-  if (completedCount < FORECAST_V1.minimumHistoryBars) {
-    throw new ForecastDataFailure(
-      'INSUFFICIENT_HISTORY',
-      `At least ${FORECAST_V1.minimumHistoryBars} completed one-hour candles are required; received ${completedCount}.`,
-    );
-  }
+  //const completedCount = completedEnd;
+ // if (completedCount < FORECAST_V1.minimumHistoryBars) {
+  //  throw new ForecastDataFailure(
+ //    'INSUFFICIENT_HISTORY',
+  //    `At least ${FORECAST_V1.minimumHistoryBars} completed one-hour candles are required; received ${completedCount}.`,);
+  //}
 
-  const start = Math.max(0, completedEnd - FORECAST_V1.lookbackBars);
+  // const start = Math.max(0, completedEnd - FORECAST_V1.lookbackBars);
+  // Prefer full completed series so gaps don't starve the lookback window
+  const start = 0; // or: Math.max(0, completedEnd - FORECAST_V1.lookbackBars * 3)
   const candles: ForecastHistoryCandle[] = [];
   let previousTime = -Infinity;
 
@@ -166,51 +167,48 @@ function normalizeForecastCandles(
     const rawHigh = highs[index];
     const rawLow = lows[index];
     const rawClose = closes[index];
-    if (!finite(rawTime)) {
-      failInvalidCandles(`Candle ${index + 1} has an invalid timestamp.`);
-    }
-    const time = Math.floor(rawTime);
-    if (time > nowSeconds) {
-      failInvalidCandles(`Candle ${index + 1} has a future timestamp.`);
-    }
-    if (time === previousTime) {
-      failInvalidCandles(`Candle ${index + 1} duplicates the previous timestamp.`);
-    }
-    if (time < previousTime) {
-      failInvalidCandles(`Candle ${index + 1} is out of chronological order.`);
-    }
-    previousTime = time;
 
+    // Skip Yahoo gap bars (common on futures / thin hours)
     if (
+      !finite(rawTime) ||
       !finite(rawOpen) ||
       !finite(rawHigh) ||
       !finite(rawLow) ||
       !finite(rawClose)
     ) {
-      failInvalidCandles(`Candle ${index + 1} contains missing or non-finite OHLC values.`);
+      continue;
     }
+
+    const time = Math.floor(rawTime);
+      if (time > nowSeconds) continue;
+      if (time === previousTime) continue;      // dedupe live bar
+      if (time < previousTime) {
+        failInvalidCandles(`Candle ${index + 1} is out of chronological order.`);
+      }
+      previousTime = time;
+
     if (rawOpen <= 0 || rawHigh <= 0 || rawLow <= 0 || rawClose <= 0) {
-      failInvalidCandles(`Candle ${index + 1} contains a non-positive OHLC value.`);
-    }
-    if (
-      rawHigh < Math.max(rawOpen, rawClose) ||
-      rawLow > Math.min(rawOpen, rawClose) ||
-      rawLow > rawHigh
-    ) {
-      failInvalidCandles(`Candle ${index + 1} has an invalid OHLC shape.`);
-    }
+        continue; // or fail — skip is safer for futures
+      }
+      if (
+        rawHigh < Math.max(rawOpen, rawClose) ||
+        rawLow > Math.min(rawOpen, rawClose) ||
+        rawLow > rawHigh
+      ) {
+        continue;
+      }
 
     let adjustmentFactor = 1;
     if (hasAdjustmentSeries) {
       const adjustedClose = adjustedCloses[index];
       if (!finite(adjustedClose) || adjustedClose <= 0) {
-        failInvalidCandles(
-          `Candle ${index + 1} is missing a valid adjusted close.`,
-        );
+        //failInvalidCandles( `Candle ${index + 1} is missing a valid adjusted close.`, );
+        continue; // was failInvalidCandles(...)
       }
       adjustmentFactor = adjustedClose / rawClose;
       if (!Number.isFinite(adjustmentFactor) || adjustmentFactor <= 0) {
-        failInvalidCandles(`Candle ${index + 1} has an invalid adjustment factor.`);
+        // failInvalidCandles(`Candle ${index + 1} has an invalid adjustment factor.`);
+        continue; // was failInvalidCandles(...)
       }
     }
 
@@ -220,15 +218,18 @@ function normalizeForecastCandles(
     const close = rawClose * adjustmentFactor;
     const rawVolume = volumes[index];
     if (rawVolume !== null && rawVolume !== undefined && !finite(rawVolume)) {
-      failInvalidCandles(`Candle ${index + 1} has non-finite volume.`);
+     // failInvalidCandles(`Candle ${index + 1} has non-finite volume.`);
+      continue;
     }
     if (finite(rawVolume) && rawVolume < 0) {
-      failInvalidCandles(`Candle ${index + 1} has negative volume.`);
+     // failInvalidCandles(`Candle ${index + 1} has negative volume.`);
+      continue;
     }
     const volume = finite(rawVolume) ? rawVolume : 0;
     const amount = volume * ((high + low + close) / 3);
     if (!Number.isFinite(amount) || amount < 0) {
-      failInvalidCandles(`Candle ${index + 1} has an invalid amount proxy.`);
+      //failInvalidCandles(`Candle ${index + 1} has an invalid amount proxy.`);
+      continue;
     }
     candles.push({
       timestamp: new Date(time * 1000).toISOString(),
@@ -239,6 +240,19 @@ function normalizeForecastCandles(
       volume,
       amount,
     });
+  }
+
+  //Then after the loop, enforce enough clean bars
+  if (candles.length < FORECAST_V1.minimumHistoryBars) {
+  throw new ForecastDataFailure(
+      'INSUFFICIENT_HISTORY',
+      `At least ${FORECAST_V1.minimumHistoryBars} completed one-hour candles are required; received ${candles.length} after dropping gaps.`,
+    );
+  }
+
+  // Keep only the last lookbackBars
+  if (candles.length > FORECAST_V1.lookbackBars) {
+    candles.splice(0, candles.length - FORECAST_V1.lookbackBars);
   }
 
   const latestTimestamp = Date.parse(candles.at(-1)?.timestamp ?? '');
@@ -270,6 +284,7 @@ function normalizeForecastCandles(
       : 'unadjusted-yahoo-chart',
   };
 }
+
 
 /**
  * Lazy forecast-only history fetch. This path intentionally has no bundled

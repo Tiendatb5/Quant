@@ -46,7 +46,7 @@ import {
   isIntradayRange,
 } from './chart/format';
 
-const DEFAULT_RANGE: ChartRange = '1y';
+const DEFAULT_RANGE: ChartRange = '1d';
 const EMPTY_LINES: TrendLines = { support: [], resistance: [] };
 const SETTINGS_KEY = 'quant.chart.settings.v1';
 

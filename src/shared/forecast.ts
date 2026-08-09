@@ -22,7 +22,7 @@ export const FORECAST_V1 = {
   recordTtlMs: 7 * 24 * 60 * 60 * 1000,
 } as const;
 
-export type ForecastAssetType = 'stock' | 'etf';
+export type ForecastAssetType = 'stock' | 'etf' | 'index' | 'future';
 
 export type ForecastJobStage =
   | 'idle'

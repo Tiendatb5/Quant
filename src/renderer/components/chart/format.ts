@@ -7,7 +7,19 @@ import type { ChartRange } from '../../../shared/types';
 
 /** Ranges the chart treats as intraday: axis shows times, not just dates. */
 export function isIntradayRange(range: ChartRange): boolean {
-  return range === '1d' || range === '1w' || range === '1m';
+  return (
+    range === '1m' ||
+    range === '5m' ||
+    range === '30m' ||
+    range === '60m' ||
+    range === '1d' ||
+    range === '3d' ||
+    range === '1W' ||
+    range === '1M' ||
+    range === '3M' ||
+    range === '6M' ||  // if you keep this key
+    range === '1Y'     // if you keep this key
+  );
 }
 
 /** 2 decimals for normal prices, 4 below $1, none at 10k+ (index levels). */

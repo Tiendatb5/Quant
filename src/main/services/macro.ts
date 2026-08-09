@@ -38,23 +38,20 @@ const SPECS: Record<Exclude<MacroOverlayKey, 'vix' | 'oil'>, MacroSpec> = {
 function rangeStartMs(range: ChartRange): number {
   const now = Date.now();
   const day = 86_400_000;
+  const hour = 3_600_000;
   switch (range) {
-    case '1d':
-      return now - 14 * day;
-    case '1w':
-      return now - 35 * day;
-    case '1m':
-      return now - 90 * day;
-    case '3m':
-      return now - 150 * day;
-    case '6m':
-      return now - 240 * day;
-    case '1y':
-      return now - 500 * day;
-    case '5y':
-      return now - 6 * 365 * day;
-    case 'max':
-      return now - 20 * 365 * day;
+    case '1m':   return now - 2 * hour;      // 1-minute: last 2 hours
+    case '5m':   return now - 6 * hour;      // 5-minute: last 6 hours
+    case '30m':  return now - 2 * day;       // 30-minute: last 2 days
+    case '60m':  return now - 5 * day;       // 60-minute: last 5 days
+    case '1d':   return now - 14 * day;
+    case '3d':   return now - 10 * day;
+    case '1W':   return now - 21 * day;      // was '1w'
+    case '1M':   return now - 90 * day;      // was '1m' (month)
+    case '3M':   return now - 150 * day;     // was '3m'
+    case '6M':   return now - 240 * day;     // was '6m'
+    case '1Y':   return now - 500 * day;     // was '1y'
+    case 'max':  return now - 20 * 365 * day;
   }
 }
 
@@ -172,17 +169,27 @@ async function getFredOverlay(
   };
 }
 
-function yahooRangeFor(range: ChartRange): { yahooRange: string; interval: string } {
-  const yahooRange =
-    range === '1w'
-      ? '5d'
-      : range === '1m'
-        ? '1mo'
-        : range === 'max'
-          ? '10y'
-          : range;
-  const interval = range === '1d' ? '5m' : range === '1w' ? '15m' : range === '1m' ? '60m' : '1d';
-  return { yahooRange, interval };
+function yahooRangeFor(range: ChartRange): { yahooRange: string; interval: string } 
+{
+  switch (range) {
+    // Intraday
+    case '1m':  return { yahooRange: '1d',  interval: '1m' };
+    case '5m':  return { yahooRange: '5d',  interval: '5m' };
+    case '30m': return { yahooRange: '1mo',  interval: '30m' };
+    case '60m': return { yahooRange: '1mo', interval: '60m' };
+
+    // Short-term
+    case '1d':  return { yahooRange: '1d',  interval: '5m' };
+    case '3d':  return { yahooRange: '5d',  interval: '15m' };
+
+    // Multi-day / Multi-month / Yearly
+    case '1W':  return { yahooRange: '5d', interval: '30m' };
+    case '1M':  return { yahooRange: '1mo', interval: '60m' };
+    case '3M':  return { yahooRange: '3mo', interval: '1d' };
+    case '6M':  return { yahooRange: '6mo',  interval: '1d' };
+    case '1Y':  return { yahooRange: '1y',  interval: '1d' };
+    case 'max': return { yahooRange: 'max', interval: '1wk' };
+  }
 }
 
 async function getYahooOverlay(

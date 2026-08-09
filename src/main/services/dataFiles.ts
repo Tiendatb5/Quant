@@ -81,7 +81,7 @@ export function getSymbolDirectory(): DirectoryEntry[] {
       if (
         typeof e.symbol === 'string' &&
         typeof e.name === 'string' &&
-        (e.type === 'etf' || e.type === 'stock')
+        (e.type === 'etf' || e.type === 'stock' || e.type === 'index' || e.type === 'future')
       ) {
         out.push({
           symbol: e.symbol.toUpperCase(),

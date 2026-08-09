@@ -393,7 +393,7 @@ export function AnalysisLab() {
     setError(null);
     setThesis(null);
     Promise.all([
-      api.getChart(activeSymbol, '1y'),
+      api.getChart(activeSymbol, '1d'),
       api.getValuation(activeSymbol),
       api.getNews([activeSymbol], 8),
       api.getEarnings([activeSymbol]),
@@ -431,7 +431,7 @@ export function AnalysisLab() {
       const note = reportNotes.trim();
       const response = await api.analyzeQuant({
         symbol: activeSymbol,
-        range: '1y',
+        range: '1d',
         evaluation: data.evaluation,
         news: data.news,
         earnings: data.earnings,

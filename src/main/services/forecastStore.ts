@@ -212,7 +212,7 @@ export function isForecastRecord(value: unknown): value is ForecastRecord {
     !FORECAST_ID_RE.test(record.id) ||
     !symbol ||
     symbol !== record.symbol ||
-    (record.assetType !== 'stock' && record.assetType !== 'etf') ||
+    (record.assetType !== 'stock' && record.assetType !== 'etf' && record.assetType !== 'index' && record.assetType !== 'future') ||
     !isIsoTimestamp(record.generatedAt) ||
     !isIsoTimestamp(record.expiresAt) ||
     !isIsoTimestamp(record.forecastStartAt) ||

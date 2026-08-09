@@ -16,14 +16,23 @@ const INTRADAY_TTL = 60_000;
 const DAILY_TTL = 10 * 60_000;
 
 const RANGE_MAP: Record<ChartRange, RangeSpec> = {
-  '1d': { yahooRange: '1d', interval: '5m', ttlMs: INTRADAY_TTL },
-  '1w': { yahooRange: '5d', interval: '15m', ttlMs: INTRADAY_TTL },
-  '1m': { yahooRange: '1mo', interval: '60m', ttlMs: INTRADAY_TTL },
-  '3m': { yahooRange: '3mo', interval: '1d', ttlMs: DAILY_TTL },
-  '6m': { yahooRange: '6mo', interval: '1d', ttlMs: DAILY_TTL },
-  '1y': { yahooRange: '1y', interval: '1d', ttlMs: DAILY_TTL },
-  '5y': { yahooRange: '5y', interval: '1wk', ttlMs: DAILY_TTL },
-  max: { yahooRange: 'max', interval: '1mo', ttlMs: DAILY_TTL },
+  // Intraday
+  '1m':  { yahooRange: '1d',  interval: '1m',  ttlMs: INTRADAY_TTL },
+  '5m':  { yahooRange: '5d',  interval: '5m',  ttlMs: INTRADAY_TTL },
+  '30m': { yahooRange: '1mo', interval: '30m', ttlMs: INTRADAY_TTL },
+  '60m': { yahooRange: '1mo', interval: '60m', ttlMs: INTRADAY_TTL },
+
+  // Multi-day / session
+  '1d':  { yahooRange: '1d',  interval: '5m',  ttlMs: INTRADAY_TTL },
+  '3d':  { yahooRange: '5d',  interval: '15m', ttlMs: INTRADAY_TTL },
+  '1W':  { yahooRange: '5d',  interval: '30m', ttlMs: INTRADAY_TTL },
+
+  // Longer horizons
+  '1M':  { yahooRange: '1mo', interval: '60m', ttlMs: INTRADAY_TTL },
+  '3M':  { yahooRange: '3mo', interval: '1d',  ttlMs: DAILY_TTL },
+  '6M':  { yahooRange: '6mo', interval: '1d',  ttlMs: DAILY_TTL },
+  '1Y':  { yahooRange: '1y',  interval: '1d',  ttlMs: DAILY_TTL },
+  max:   { yahooRange: 'max', interval: '1wk', ttlMs: DAILY_TTL },
 };
 
 function isFiniteNumber(v: number | null | undefined): v is number {

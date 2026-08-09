@@ -133,8 +133,8 @@ export function MarketPulse() {
     setError(null);
     try {
       const [results, macro] = await Promise.all([
-        Promise.all(MARKET_PULSE_ASSETS.map((asset) => api.getChart(asset.symbol, '1y'))),
-        Promise.all(MACRO_INPUTS.map((key) => api.getMacroOverlay(key, '1y'))),
+        Promise.all(MARKET_PULSE_ASSETS.map((asset) => api.getChart(asset.symbol, '1Y'))),
+        Promise.all(MACRO_INPUTS.map((key) => api.getMacroOverlay(key, '1Y'))),
       ]);
       setCharts(results);
       setMacroSeries(macro);

@@ -146,7 +146,7 @@ export async function scanSignals(rawRequest?: unknown): Promise<SignalScanResul
   const scanned = await Promise.all(
     selected.map((entry) =>
       limit(async (): Promise<SignalScanRow | null> => {
-        const chart = await getChart(entry.symbol, '1y');
+        const chart = await getChart(entry.symbol, '1Y');
         const candles = chart.candles;
         const latest = candles[candles.length - 1];
         if (!latest) return null;

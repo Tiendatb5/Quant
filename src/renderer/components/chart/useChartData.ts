@@ -96,7 +96,18 @@ export function useChartData(
   }, [symbol, range, state.generation]);
 
   useEffect(() => {
-    if (range !== '1d' && range !== '1w' && range !== '1m') return;
+    if (range !== '1m' && 
+        range !== '5m' && 
+        range !== '30m' && 
+        range !== '60m' && 
+        range !== '1d' && 
+        range !== '3d' && 
+        range !== '1W' && 
+        range !== '1M' && 
+        range !== '3M' && 
+        range !== '6M' && 
+        range !== '1Y'
+    ) return;
     const id = window.setInterval(() => {
       api.getChart(symbol, range).then(
         (fresh) => {
@@ -146,20 +157,28 @@ export function useChartData(
 
 function nextLongerRange(range: ChartRange): ChartRange {
   switch (range) {
-    case '1d':
-      return '1w';
-    case '1w':
-      return '1m';
     case '1m':
-      return '3m';
-    case '3m':
-      return '6m';
-    case '6m':
-      return '1y';
-    case '1y':
-      return '5y';
-    case '5y':
-      return 'max';
+      return '1m';
+    case '5m':
+      return '5m';
+    case '30m':
+      return '30m';
+    case '60m':
+      return '60m';
+    case '1d':
+      return '1d';
+    case '3d':
+      return '3d';
+    case '1W':
+      return '1W';
+    case '1M':
+      return '1M';
+    case '3M':
+      return '3M';
+    case '6M':
+      return '6M';
+    case '1Y':
+      return '1Y';
     case 'max':
       return 'max';
   }

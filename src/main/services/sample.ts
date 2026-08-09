@@ -54,14 +54,18 @@ interface SampleRangeSpec {
 }
 
 const SAMPLE_RANGE: Record<ChartRange, SampleRangeSpec> = {
-  '1d': { interval: '5m', count: 78, kind: 'intraday', stepSec: 300, vol: 0.0012, baseVolume: 900_000 },
-  '1w': { interval: '15m', count: 130, kind: 'intraday', stepSec: 900, vol: 0.002, baseVolume: 2_600_000 },
-  '1m': { interval: '60m', count: 154, kind: 'intraday', stepSec: 3600, vol: 0.004, baseVolume: 9_000_000 },
-  '3m': { interval: '1d', count: 63, kind: 'daily', stepSec: 86_400, vol: 0.012, baseVolume: 55_000_000 },
-  '6m': { interval: '1d', count: 126, kind: 'daily', stepSec: 86_400, vol: 0.012, baseVolume: 55_000_000 },
-  '1y': { interval: '1d', count: 252, kind: 'daily', stepSec: 86_400, vol: 0.012, baseVolume: 55_000_000 },
-  '5y': { interval: '1wk', count: 260, kind: 'weekly', stepSec: 7 * 86_400, vol: 0.028, baseVolume: 260_000_000 },
-  max: { interval: '1mo', count: 240, kind: 'monthly', stepSec: 30 * 86_400, vol: 0.05, baseVolume: 1_100_000_000 },
+  '1m':  { interval: '1m',  count: 390,  kind: 'intraday', stepSec: 60,      vol: 0.0008, baseVolume: 200_000 },
+  '5m':  { interval: '5m',  count: 390,  kind: 'intraday', stepSec: 300,     vol: 0.0012, baseVolume: 900_000 },
+  '30m': { interval: '30m', count: 200,  kind: 'intraday', stepSec: 1800,    vol: 0.0025, baseVolume: 4_000_000 },
+  '60m': { interval: '60m', count: 154,  kind: 'intraday', stepSec: 3600,    vol: 0.004,  baseVolume: 9_000_000 },
+  '1d':  { interval: '5m',  count: 78,   kind: 'intraday', stepSec: 300,     vol: 0.0012, baseVolume: 900_000 },
+  '3d':  { interval: '15m', count: 130,  kind: 'intraday', stepSec: 900,     vol: 0.002,  baseVolume: 2_600_000 },
+  '1W':  { interval: '30m', count: 130,  kind: 'intraday', stepSec: 1800,    vol: 0.0025, baseVolume: 4_000_000 },
+  '1M':  { interval: '60m', count: 154,  kind: 'intraday', stepSec: 3600,    vol: 0.004,  baseVolume: 9_000_000 },
+  '3M':  { interval: '1d',  count: 63,   kind: 'daily',    stepSec: 86_400,  vol: 0.012,  baseVolume: 55_000_000 },
+  '6M':  { interval: '1d',  count: 126,  kind: 'daily',    stepSec: 86_400,  vol: 0.012,  baseVolume: 55_000_000 },
+  '1Y':  { interval: '1d',  count: 252,  kind: 'daily',    stepSec: 86_400,  vol: 0.012,  baseVolume: 55_000_000 },
+  max:   { interval: '1wk', count: 260,  kind: 'weekly',   stepSec: 7*86400, vol: 0.028,  baseVolume: 260_000_000 },
 };
 
 const SESSION_OPEN_SEC = 13.5 * 3600; // 13:30 UTC ~ US market open
@@ -123,6 +127,9 @@ function buildTimes(spec: SampleRangeSpec, count: number): number[] {
 export function sampleChart(symbol: string, range: ChartRange): ChartData {
   const sym = symbol.toUpperCase();
   const spec = SAMPLE_RANGE[range];
+    if (!spec) {
+      return sampleChart(symbol, '1d');
+    }
   const rng = mulberry32(stableHash(`${sym}|${range}`));
   const base = basePriceFor(sym);
   const times = buildTimes(spec, spec.count);

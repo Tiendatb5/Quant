@@ -146,7 +146,7 @@ function cleanPivots(raw: unknown): PivotPoint[] {
 }
 
 function cleanRange(raw: unknown): ChartRange {
-  return CHART_RANGES.includes(raw as ChartRange) ? (raw as ChartRange) : '6m';
+  return CHART_RANGES.includes(raw as ChartRange) ? (raw as ChartRange) : '1d';
 }
 
 function cleanMacroOverlayKey(raw: unknown): MacroOverlayKey {
@@ -629,9 +629,24 @@ function createWindow(): void {
   if (smokeChartMode === 'grid' || smokeChartMode === 'single') {
     query.smokeChartMode = smokeChartMode;
   }
-  if (smokeChartRange === '1m' || smokeChartRange === '3m' || smokeChartRange === '1y') {
+  
+  if (
+    smokeChartRange === '1m' ||
+    smokeChartRange === '5m' ||
+    smokeChartRange === '30m' ||
+    smokeChartRange === '60m' ||
+    smokeChartRange === '1d' ||
+    smokeChartRange === '3d' ||
+    smokeChartRange === '1W' ||
+    smokeChartRange === '1M' ||
+    smokeChartRange === '3M' ||
+    smokeChartRange === '6M' ||
+    smokeChartRange === '1Y' ||
+    smokeChartRange === 'max'
+  ) {
     query.smokeChartRange = smokeChartRange;
   }
+
   if (forceOnboarding) query.onboarding = '1';
   if (smokeOnboardingStep === 'llm' || smokeOnboardingStep === 'tips') {
     query.onboardingStep = smokeOnboardingStep;

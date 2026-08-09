@@ -90,7 +90,7 @@ export function cleanForecastRunRequest(raw: unknown): ForecastRunRequest | null
   const value = raw as Partial<ForecastRunRequest>;
   const symbol = normalizeSymbol(value.symbol);
   if (!symbol) return null;
-  if (value.assetType !== 'stock' && value.assetType !== 'etf') return null;
+  if (value.assetType !== 'stock' && value.assetType !== 'etf' && value.assetType !== 'index' && value.assetType !== 'future') return null;
   if (
     value.paths !== FORECAST_V1.pathCount ||
     value.horizonBars !== FORECAST_V1.predictionBars ||

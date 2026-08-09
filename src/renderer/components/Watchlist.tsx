@@ -3,7 +3,7 @@
 // Skeleton rows while the persisted watchlist loads; a helpful empty state
 // when nothing is tracked yet.
 
-import '../styles/watchlist';
+import '../styles/watchlist.css';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { HoldingsResult, Quote, WatchlistItem } from '../../shared/types';
