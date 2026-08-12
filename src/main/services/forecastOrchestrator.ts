@@ -10,6 +10,7 @@ import {
 } from './forecastJobRegistry';
 import { isForecastRecord } from './forecastStore';
 import { WorkerClientFailure } from './kronosWorker';
+import { isForecastWorkerRequest } from '../../shared/forecastWorker';
 
 type CompletedWorkerEvent = Extract<
   ForecastWorkerEvent,

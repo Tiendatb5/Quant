@@ -144,8 +144,8 @@ export interface ForecastProvenance {
   adjustmentMethod?: string;
   exchange: string;
   exchangeTimezone: string;
-  marketCalendar: 'US-equities-v1';
-  regularSession: '09:30-16:00';
+  marketCalendar: 'US-equities-v1' | 'CME-equity-index-futures-v1';
+  regularSession: '09:30-16:00' | '18:00-17:00-Globex';
   modelId: string;
   tokenizerId: string;
   kronosCommit: string;

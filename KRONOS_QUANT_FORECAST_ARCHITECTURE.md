@@ -525,7 +525,7 @@ export type ForecastJobStage =
 
 export interface ForecastRunRequest {
   symbol: string;
-  assetType: "stock" | "etf";
+  assetType: "stock" | "etf" | "future" | "index";
   requestedAt: string;
   paths: 30;
   horizonBars: 24;

@@ -16,8 +16,9 @@ import type {
   ForecastRunResult,
 } from '../../shared/forecast';
 import {
-  ForecastCalendarFailure,
+ForecastCalendarFailure,
   nextUsMarketBarTimestamps,
+  nextCmeEquityIndexFuturesBarTimestamps, // add this
   type ForecastCalendarResult,
 } from './forecastCalendar';
 import { ForecastDataFailure } from './forecastData';
@@ -90,7 +91,17 @@ export function cleanForecastRunRequest(raw: unknown): ForecastRunRequest | null
   const value = raw as Partial<ForecastRunRequest>;
   const symbol = normalizeSymbol(value.symbol);
   if (!symbol) return null;
-  if (value.assetType !== 'stock' && value.assetType !== 'etf' && value.assetType !== 'index' && value.assetType !== 'future') return null;
+
+  // cleanForecastRunRequest — allow future
+  if (
+    value.assetType !== 'stock' &&
+    value.assetType !== 'etf' &&
+    value.assetType !== 'index' &&
+    value.assetType !== 'future'
+  ) {
+    return null;
+  }
+
   if (
     value.paths !== FORECAST_V1.pathCount ||
     value.horizonBars !== FORECAST_V1.predictionBars ||
@@ -203,13 +214,25 @@ export class ForecastJobRegistry {
         ) {
           return null;
         }
-        const calendar = nextUsMarketBarTimestamps({
-          afterTimestamp:
-            history?.candles.at(-1)?.timestamp ?? request.requestedAt,
-          count: FORECAST_V1.predictionBars,
-          exchange: history?.exchange,
-          timezone: history?.timezone,
-        });
+
+        // when building calendar:
+        const afterTs = history?.candles.at(-1)?.timestamp ?? request.requestedAt;
+
+        const calendar =
+          request.assetType === 'future'
+            ? nextCmeEquityIndexFuturesBarTimestamps({
+                afterTimestamp: afterTs,
+                count: FORECAST_V1.predictionBars,
+                exchange: history?.exchange,
+                timezone: history?.timezone,
+              })
+            : nextUsMarketBarTimestamps({
+                afterTimestamp: afterTs,
+                count: FORECAST_V1.predictionBars,
+                exchange: history?.exchange,
+                timezone: history?.timezone,
+              });
+
         return this.runner({
           jobId,
           request,

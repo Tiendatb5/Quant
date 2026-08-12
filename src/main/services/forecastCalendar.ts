@@ -33,13 +33,18 @@ export interface ForecastCalendarRequest {
   timezone?: string;
 }
 
+export const CME_FUTURES_TIMEZONE = 'America/New_York';
+export const CME_EQUITY_INDEX_FUTURES_CALENDAR = 'CME-equity-index-futures-v1';
+export const CME_GLOBEX_SESSION = '18:00-17:00-Globex';
+
+// Widen assumptions type
 export interface ForecastCalendarResult {
   timestamps: string[];
   assumptions: {
     exchange: string;
-    timezone: typeof US_MARKET_TIMEZONE;
-    calendar: typeof US_MARKET_CALENDAR;
-    regularSession: typeof US_REGULAR_SESSION;
+    timezone: string;
+    calendar: typeof US_MARKET_CALENDAR | typeof CME_EQUITY_INDEX_FUTURES_CALENDAR;
+    regularSession: typeof US_REGULAR_SESSION | typeof CME_GLOBEX_SESSION;
   };
 }
 
@@ -361,4 +366,163 @@ export function nextUsMarketBarTimestamps(
   throw new ForecastCalendarFailure(
     `Could not produce ${request.count} valid U.S. market-bar timestamps.`,
   );
+}
+
+/** CME equity-index futures (MNQ/MES/ES/NQ): almost 24h Globex, daily break ~17:00–18:00 America/New_York. */
+
+const GLOBEX_BREAK_START_MINUTE = 17 * 60; // 17:00 ET inclusive
+const GLOBEX_BREAK_END_MINUTE = 18 * 60;   // 18:00 ET exclusive (reopen)
+
+function getNyParts(ms: number): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  weekday: number; // 0=Sun..6=Sat
+} {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    weekday: 'short',
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(new Date(ms));
+  const map: Record<string, string> = {};
+  for (const p of parts) {
+    if (p.type !== 'literal') map[p.type] = p.value;
+  }
+  const weekdayMap: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+  // hour12:false can yield "24" for midnight in some engines — normalize
+  let hour = Number(map.hour);
+  if (hour === 24) hour = 0;
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day),
+    hour,
+    minute: Number(map.minute),
+    weekday: weekdayMap[map.weekday] ?? 0,
+  };
+}
+
+/** Convert an America/New_York wall time to UTC ms (handles EST/EDT). */
+function nyWallToUtcMs(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+): number {
+  // Rough UTC guess, then correct using the actual NY offset at that instant.
+  let guess = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
+  for (let i = 0; i < 3; i++) {
+    const ny = getNyParts(guess);
+    const asNy = Date.UTC(ny.year, ny.month - 1, ny.day, ny.hour, ny.minute, 0, 0);
+    const target = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
+    guess += target - asNy;
+  }
+  return guess;
+}
+
+function isCmeEquityIndexFuturesTradingDay(weekday: number): boolean {
+  // Globex: Sun evening open through Fri afternoon close.
+  // weekday is the NY calendar day of the bar start.
+  // Allow Sun(0) for Sunday 18:00 open, Mon–Thu full, Fri until break.
+  // Block pure Saturday.
+  return weekday !== 6;
+}
+
+function isGlobexHourAllowed(weekday: number, minuteOfDay: number): boolean {
+  if (weekday === 6) return false; // Saturday
+  // Daily maintenance: 17:00 <= t < 18:00 ET
+  if (minuteOfDay >= GLOBEX_BREAK_START_MINUTE && minuteOfDay < GLOBEX_BREAK_END_MINUTE) {
+    return false;
+  }
+  // Friday: session ends at 17:00 ET (no reopen Friday 18:00)
+  if (weekday === 5 && minuteOfDay >= GLOBEX_BREAK_START_MINUTE) {
+    return false;
+  }
+  // Sunday: only from 18:00 ET onward
+  if (weekday === 0 && minuteOfDay < GLOBEX_BREAK_END_MINUTE) {
+    return false;
+  }
+  return true;
+}
+
+export function nextCmeEquityIndexFuturesBarTimestamps(
+  request: ForecastCalendarRequest,
+): ForecastCalendarResult {
+  const afterMs = Date.parse(request.afterTimestamp);
+  if (!Number.isFinite(afterMs)) {
+    throw new ForecastCalendarFailure(
+      'A valid latest completed candle timestamp is required.',
+    );
+  }
+  if (
+    !Number.isInteger(request.count) ||
+    request.count < 1 ||
+    request.count > 10_000
+  ) {
+    throw new ForecastCalendarFailure(
+      'A valid forecast market-bar count is required.',
+    );
+  }
+
+  const timestamps: string[] = [];
+  // Start searching from the next whole hour after the last completed bar.
+  let cursor = afterMs - (afterMs % 3_600_000) + 3_600_000;
+
+  // Safety: never scan more than ~60 days of hours
+  const maxSteps = 60 * 24;
+  let steps = 0;
+
+  while (timestamps.length < request.count && steps < maxSteps) {
+    steps += 1;
+    const ny = getNyParts(cursor);
+    const minuteOfDay = ny.hour * 60 + ny.minute;
+
+    if (
+      isCmeEquityIndexFuturesTradingDay(ny.weekday) &&
+      isGlobexHourAllowed(ny.weekday, minuteOfDay)
+    ) {
+      // Re-anchor to exact NY wall hour → UTC so DST cannot skew the stamp
+      const aligned = nyWallToUtcMs(ny.year, ny.month, ny.day, ny.hour, 0);
+      const iso = new Date(aligned).toISOString();
+      const last = timestamps[timestamps.length - 1];
+      if (!last || iso > last) {
+        timestamps.push(iso);
+      }
+    }
+
+    cursor += 3_600_000; // always walk forward in real time
+  }
+
+  if (timestamps.length < request.count) {
+    throw new ForecastCalendarFailure(
+      `Could not build ${request.count} CME futures hourly bars after ${request.afterTimestamp}.`,
+    );
+  }
+
+  return {
+    timestamps,
+    assumptions: {
+      calendar: 'CME-equity-index-futures-v1',
+      regularSession: '18:00-17:00-Globex',
+      exchange: request.exchange ?? 'CME',
+      timezone: request.timezone ?? 'America/New_York',
+    },
+  };
 }

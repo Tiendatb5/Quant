@@ -1,5 +1,6 @@
 import {
   FORECAST_V1,
+  type ForecastAssetType,
   type ForecastErrorCode,
   type ForecastHistoryCandle,
   type ForecastHistoryData,
@@ -19,6 +20,11 @@ const ONE_HOUR_MS = ONE_HOUR_SECONDS * 1000;
 /** Allows weekends and three-day market closures until Chunk 2.3 adds a calendar. */
 export const FORECAST_MAX_STALENESS_MS = 4 * 24 * 60 * 60 * 1000;
 const FORECAST_MAX_SESSION_LAG_MS = 2 * ONE_HOUR_MS;
+
+const FUTURES_MAX_STALENESS_MS = 6 * 60 * 60 * 1000; // 6h
+const FUTURES_MAX_SESSION_LAG_MS = 4 * 60 * 60 * 1000; // 4h
+
+
 
 export interface ForecastHistoryProviderResult {
   source: DataSource;
@@ -64,12 +70,21 @@ async function yahooForecastHistoryProvider(
   };
 }
 
+// ---------- shared helpers (put them here) ----------
 function finite(value: number | null | undefined): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
 function failInvalidCandles(message: string): never {
   throw new ForecastDataFailure('INVALID_CANDLES', message);
+}
+
+function isEquityAsset(assetType: ForecastAssetType): boolean {
+  return assetType === 'stock' || assetType === 'etf' || assetType === 'index';
+}
+
+function isFuturesAsset(assetType: ForecastAssetType): boolean {
+  return assetType === 'future';
 }
 
 function regularSession(
@@ -112,7 +127,12 @@ function expectedMarketReferenceSeconds(
   return Math.min(nowSeconds, session.end);
 }
 
-function normalizeForecastCandles(
+/**
+ * Strict equity / ETF / index normalizer.
+ * Hard-fails on bad OHLC, adjclose, volume, shape, order, staleness.
+ * Unchanged behavior for SPY, QQQ, etc.
+ */
+function normalizeForecastCandlesEquity(
   chart: YahooChartResult,
   nowMs: number,
 ): {
@@ -148,14 +168,171 @@ function normalizeForecastCandles(
     completedEnd -= 1;
   }
 
-  //const completedCount = completedEnd;
- // if (completedCount < FORECAST_V1.minimumHistoryBars) {
-  //  throw new ForecastDataFailure(
- //    'INSUFFICIENT_HISTORY',
-  //    `At least ${FORECAST_V1.minimumHistoryBars} completed one-hour candles are required; received ${completedCount}.`,);
-  //}
+  const completedCount = completedEnd;
+  if (completedCount < FORECAST_V1.minimumHistoryBars) {
+    throw new ForecastDataFailure(
+      'INSUFFICIENT_HISTORY',
+      `At least ${FORECAST_V1.minimumHistoryBars} completed one-hour candles are required; received ${completedCount}.`,
+    );
+  }
 
-  // const start = Math.max(0, completedEnd - FORECAST_V1.lookbackBars);
+  const start = Math.max(0, completedEnd - FORECAST_V1.lookbackBars);
+  const candles: ForecastHistoryCandle[] = [];
+  let previousTime = -Infinity;
+
+  for (let index = start; index < completedEnd; index += 1) {
+    const rawTime = timestamps[index];
+    const rawOpen = opens[index];
+    const rawHigh = highs[index];
+    const rawLow = lows[index];
+    const rawClose = closes[index];
+    if (!finite(rawTime)) {
+      failInvalidCandles(`Candle ${index + 1} has an invalid timestamp.`);
+    }
+    const time = Math.floor(rawTime);
+    if (time > nowSeconds) {
+      failInvalidCandles(`Candle ${index + 1} has a future timestamp.`);
+    }
+    if (time === previousTime) {
+      failInvalidCandles(`Candle ${index + 1} duplicates the previous timestamp.`);
+    }
+    if (time < previousTime) {
+      failInvalidCandles(`Candle ${index + 1} is out of chronological order.`);
+    }
+    previousTime = time;
+
+    if (
+      !finite(rawOpen) ||
+      !finite(rawHigh) ||
+      !finite(rawLow) ||
+      !finite(rawClose)
+    ) {
+      failInvalidCandles(`Candle ${index + 1} contains missing or non-finite OHLC values.`);
+    }
+    if (rawOpen <= 0 || rawHigh <= 0 || rawLow <= 0 || rawClose <= 0) {
+      failInvalidCandles(`Candle ${index + 1} contains a non-positive OHLC value.`);
+    }
+    if (
+      rawHigh < Math.max(rawOpen, rawClose) ||
+      rawLow > Math.min(rawOpen, rawClose) ||
+      rawLow > rawHigh
+    ) {
+      failInvalidCandles(`Candle ${index + 1} has an invalid OHLC shape.`);
+    }
+
+    let adjustmentFactor = 1;
+    if (hasAdjustmentSeries) {
+      const adjustedClose = adjustedCloses[index];
+      if (!finite(adjustedClose) || adjustedClose <= 0) {
+        failInvalidCandles(
+          `Candle ${index + 1} is missing a valid adjusted close.`,
+        );
+      }
+      adjustmentFactor = adjustedClose / rawClose;
+      if (!Number.isFinite(adjustmentFactor) || adjustmentFactor <= 0) {
+        failInvalidCandles(`Candle ${index + 1} has an invalid adjustment factor.`);
+      }
+    }
+
+    const open = rawOpen * adjustmentFactor;
+    const high = rawHigh * adjustmentFactor;
+    const low = rawLow * adjustmentFactor;
+    const close = rawClose * adjustmentFactor;
+    const rawVolume = volumes[index];
+    if (rawVolume !== null && rawVolume !== undefined && !finite(rawVolume)) {
+      failInvalidCandles(`Candle ${index + 1} has non-finite volume.`);
+    }
+    if (finite(rawVolume) && rawVolume < 0) {
+      failInvalidCandles(`Candle ${index + 1} has negative volume.`);
+    }
+    const volume = finite(rawVolume) ? rawVolume : 0;
+    const amount = volume * ((high + low + close) / 3);
+    if (!Number.isFinite(amount) || amount < 0) {
+      failInvalidCandles(`Candle ${index + 1} has an invalid amount proxy.`);
+    }
+    candles.push({
+      timestamp: new Date(time * 1000).toISOString(),
+      open,
+      high,
+      low,
+      close,
+      volume,
+      amount,
+    });
+  }
+
+  const latestTimestamp = Date.parse(candles.at(-1)?.timestamp ?? '');
+  const latestStartSeconds = Math.floor(latestTimestamp / 1000);
+  const latestCompletedAt =
+    candleCompletionSeconds(latestStartSeconds, session) * 1000;
+  const expectedMarketReference = expectedMarketReferenceSeconds(
+    nowSeconds,
+    session,
+  );
+  if (
+    !Number.isFinite(latestCompletedAt) ||
+    nowMs - latestCompletedAt > FORECAST_MAX_STALENESS_MS ||
+    (expectedMarketReference !== null &&
+      expectedMarketReference * 1000 - latestCompletedAt >
+        FORECAST_MAX_SESSION_LAG_MS)
+  ) {
+    throw new ForecastDataFailure(
+      'STALE_MARKET_DATA',
+      'The latest completed one-hour candle is stale. Refresh market data and retry.',
+    );
+  }
+
+  return {
+    candles,
+    adjusted: hasAdjustmentSeries,
+    adjustmentMethod: hasAdjustmentSeries
+      ? 'yahoo-adjusted-close-factor'
+      : 'unadjusted-yahoo-chart',
+  };
+}
+
+
+/**
+ * Futures normalizer (MNQ, NQ, ES, ...).
+ * Skips gap / null / bad bars instead of failing the whole run.
+ * Uses clock-hour completion + looser staleness (Globex).
+ */
+function normalizeForecastCandlesFutures(
+  chart: YahooChartResult,
+  nowMs: number,
+): {
+  candles: ForecastHistoryCandle[];
+  adjusted: boolean;
+  adjustmentMethod: string;
+} {
+  const timestamps = Array.isArray(chart.timestamp) ? chart.timestamp : [];
+  const quote = chart.indicators?.quote?.[0] ?? {};
+  const opens = quote.open ?? [];
+  const highs = quote.high ?? [];
+  const lows = quote.low ?? [];
+  const closes = quote.close ?? [];
+  const volumes = quote.volume ?? [];
+  const adjustedCloses = chart.indicators?.adjclose?.[0]?.adjclose;
+  const hasAdjustmentSeries = Array.isArray(adjustedCloses);
+  const nowSeconds = Math.floor(nowMs / 1000);
+  const session = regularSession(chart);
+
+  if (timestamps.length === 0) {
+    throw new ForecastDataFailure(
+      'MARKET_DATA_UNAVAILABLE',
+      'No one-hour candles are available for forecasting.',
+    );
+  }
+
+  let completedEnd = timestamps.length;
+  const lastTimestamp = timestamps.at(-1);
+  if (
+    finite(lastTimestamp) &&
+    candleCompletionSeconds(Math.floor(lastTimestamp), session) > nowSeconds
+  ) {
+    completedEnd -= 1;
+  }
+
   // Prefer full completed series so gaps don't starve the lookback window
   const start = 0; // or: Math.max(0, completedEnd - FORECAST_V1.lookbackBars * 3)
   const candles: ForecastHistoryCandle[] = [];
@@ -255,20 +432,22 @@ function normalizeForecastCandles(
     candles.splice(0, candles.length - FORECAST_V1.lookbackBars);
   }
 
+// Futures staleness: clock-based, no equity RTH lag
   const latestTimestamp = Date.parse(candles.at(-1)?.timestamp ?? '');
-  const latestStartSeconds = Math.floor(latestTimestamp / 1000);
-  const latestCompletedAt =
-    candleCompletionSeconds(latestStartSeconds, session) * 1000;
-  const expectedMarketReference = expectedMarketReferenceSeconds(
-    nowSeconds,
-    session,
-  );
+  const latestCompletedAt = latestTimestamp + ONE_HOUR_MS; // bar ends 1h after start
+
   if (
     !Number.isFinite(latestCompletedAt) ||
-    nowMs - latestCompletedAt > FORECAST_MAX_STALENESS_MS ||
-    (expectedMarketReference !== null &&
-      expectedMarketReference * 1000 - latestCompletedAt >
-        FORECAST_MAX_SESSION_LAG_MS)
+    nowMs - latestCompletedAt > FUTURES_MAX_STALENESS_MS ||
+    nowMs - latestCompletedAt > FUTURES_MAX_SESSION_LAG_MS
+  ) {
+    // For futures, both checks are effectively "how old is the last completed bar?"
+    // Keep one clear condition:
+  }
+
+  if (
+    !Number.isFinite(latestCompletedAt) ||
+    nowMs - latestCompletedAt > FUTURES_MAX_STALENESS_MS
   ) {
     throw new ForecastDataFailure(
       'STALE_MARKET_DATA',
@@ -285,6 +464,19 @@ function normalizeForecastCandles(
   };
 }
 
+// ---------- dispatcher ----------
+function normalizeForecastCandles(
+  chart: YahooChartResult,
+  nowMs: number,
+  assetType: ForecastAssetType,
+) {
+  if (isFuturesAsset(assetType)) {
+    //return future MNQ NQ
+    return normalizeForecastCandlesFutures(chart, nowMs);
+  }
+  //return equity, index
+  return normalizeForecastCandlesEquity(chart, nowMs);
+}
 
 /**
  * Lazy forecast-only history fetch. This path intentionally has no bundled
@@ -320,8 +512,12 @@ export async function getForecastHistory(
 
   const result = payload.chart;
   const meta = result.meta ?? {};
-  const normalized = normalizeForecastCandles(result, now());
-
+  //const normalized = normalizeForecastCandles(result, now());
+  const normalized = normalizeForecastCandles(
+    payload.chart,
+    now(),
+    request.assetType, // ← drives the branch
+  );
   return {
     symbol: request.symbol,
     assetType: request.assetType,
@@ -343,5 +539,5 @@ export async function getForecastHistory(
     adjusted: normalized.adjusted,
     adjustmentMethod: normalized.adjustmentMethod,
     amountMethod: 'volume-times-typical-price',
-  };
+  }
 }
