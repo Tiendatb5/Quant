@@ -6,6 +6,18 @@ import sys
 import threading
 import time
 
+#//log error
+import time
+
+def _cp(msg):
+    """Checkpoint to stderr so Electron/kronosWorker onStderr can show it."""
+    print(
+        "[forecast-worker][cp] %.3f %s" % (time.time(), msg),
+        file=sys.stderr,
+        flush=True,
+    )
+#// end log error
+
 from kronos_adapter import KronosAdapter, KronosAdapterError
 from engine import PathRunnerError, run_forecast_paths
 from metrics import (
@@ -134,6 +146,9 @@ def emit_post_processing_progress(job_id, percent, message):
 
 def run_job(job_id, payload, cancel_event):
     try:
+        _cp("run_job start jobId=%s candles=%s" % (
+            job_id, len(payload.get("candles") or []),
+        ))
         if os.environ.get("QUANT_FORECAST_WORKER_CRASH_ON_RUN") == "1":
             log("test crash requested")
             os._exit(17)
@@ -200,6 +215,10 @@ def run_job(job_id, payload, cancel_event):
                 )
             )
         else:
+            _cp("before get_kronos_adapter")
+            adapter = get_kronos_adapter()
+            _cp("after get_kronos_adapter")
+
             emit_preparation_progress(
                 job_id,
                 3,
@@ -209,6 +228,7 @@ def run_job(job_id, payload, cancel_event):
             progress_percent = [3]
 
             def report_status(phase, message):
+                _cp("prepare status phase=%s msg=%s" % (phase, message))
                 progress_percent[0] = min(progress_percent[0] + 1, 5)
                 emit_preparation_progress(
                     job_id,
@@ -218,18 +238,23 @@ def run_job(job_id, payload, cancel_event):
                 )
 
             try:
+                _cp("before adapter.prepare")
                 adapter = get_kronos_adapter()
                 metadata = adapter.prepare(
                     on_status=report_status,
                     is_cancelled=cancel_event.is_set,
                 )
+                _cp("after adapter.prepare device=%s" % metadata.get("device"))
+                _cp("before prepare_input")
                 if cancel_event.is_set():
                     raise KronosAdapterError(
                         "JOB_CANCELLED",
                         "Forecast cancelled during model preparation.",
                     )
                 prepared = adapter.prepare_input(payload)
+                _cp("after prepare_input")
             except KronosAdapterError as error:
+                _cp("KronosAdapterError %s" % error.code)
                 if error.detail:
                     log("%s: %s" % (error.code, error.detail))
                 event_type = (
@@ -283,6 +308,7 @@ def run_job(job_id, payload, cancel_event):
                     emit(progress_event)
 
         try:
+            _cp("before run_forecast_paths")
             path_result = run_forecast_paths(
                 payload,
                 adapter,
@@ -291,6 +317,7 @@ def run_job(job_id, payload, cancel_event):
                 on_progress=report_path_progress,
                 base_seed=base_seed,
             )
+            _cp("after run_forecast_paths")
         except PathRunnerError as error:
             if error.detail:
                 log("%s: %s" % (error.code, error.detail))
@@ -477,6 +504,7 @@ def handle_request(request):
 
 
 def main():
+    _cp("main enter")
     log("worker shell starting")
     emit(
         {
@@ -485,6 +513,7 @@ def main():
             "pythonVersion": python_version(),
         }
     )
+    _cp("ready emitted")
     keep_running = True
     while keep_running:
         line = sys.stdin.readline()
@@ -492,9 +521,12 @@ def main():
             break
         if not line.strip():
             continue
+        _cp("stdin line len=%d" % len(line))
         try:
             request = parse_request_line(line)
+            _cp("parsed type=%s" % request.get("type"))
             keep_running = handle_request(request)
+            _cp("handle_request done type=%s" % request.get("type"))
         except ProtocolError as error:
             log(str(error))
             emit(

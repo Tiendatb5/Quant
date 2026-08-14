@@ -133,7 +133,7 @@ function expectedMarketReferenceSeconds(
  * Unchanged behavior for SPY, QQQ, etc.
  */
 function normalizeForecastCandlesEquity(
-  chart: YahooChartResult,
+     chart: YahooChartResult,
   nowMs: number,
 ): {
   candles: ForecastHistoryCandle[];
@@ -291,7 +291,6 @@ function normalizeForecastCandlesEquity(
   };
 }
 
-
 /**
  * Futures normalizer (MNQ, NQ, ES, ...).
  * Skips gap / null / bad bars instead of failing the whole run.
@@ -333,8 +332,17 @@ function normalizeForecastCandlesFutures(
     completedEnd -= 1;
   }
 
-  // Prefer full completed series so gaps don't starve the lookback window
-  const start = 0; // or: Math.max(0, completedEnd - FORECAST_V1.lookbackBars * 3)
+  const completedCount = completedEnd;
+  if (completedCount < FORECAST_V1.minimumHistoryBars) {
+    throw new ForecastDataFailure(
+      'INSUFFICIENT_HISTORY',
+      `At least ${FORECAST_V1.minimumHistoryBars} completed one-hour candles are required; received ${completedCount}.`,
+    );
+  }
+
+  // We may scan the full Yahoo response so gaps do not starve the
+  // usable history, but Kronos must receive only the intended lookback.
+  const start = Math.max(0, completedEnd - FORECAST_V1.lookbackBars);
   const candles: ForecastHistoryCandle[] = [];
   let previousTime = -Infinity;
 
@@ -408,7 +416,7 @@ function normalizeForecastCandlesFutures(
       //failInvalidCandles(`Candle ${index + 1} has an invalid amount proxy.`);
       continue;
     }
-    candles.push({
+     candles.push({
       timestamp: new Date(time * 1000).toISOString(),
       open,
       high,
@@ -420,39 +428,28 @@ function normalizeForecastCandlesFutures(
   }
 
   //Then after the loop, enforce enough clean bars
-  if (candles.length < FORECAST_V1.minimumHistoryBars) {
-  throw new ForecastDataFailure(
-      'INSUFFICIENT_HISTORY',
-      `At least ${FORECAST_V1.minimumHistoryBars} completed one-hour candles are required; received ${candles.length} after dropping gaps.`,
-    );
-  }
+    if (candles.length < FORECAST_V1.minimumHistoryBars) {
+        throw new ForecastDataFailure(
+          'INSUFFICIENT_HISTORY',
+          `At least ${FORECAST_V1.minimumHistoryBars} completed one-hour candles are required; received ${candles.length} after dropping gaps.`,
+        );
+      }
 
-  // Keep only the last lookbackBars
-  if (candles.length > FORECAST_V1.lookbackBars) {
-    candles.splice(0, candles.length - FORECAST_V1.lookbackBars);
-  }
+  // Cap for Kronos (this is what was missing)
+    if (candles.length > FORECAST_V1.lookbackBars) {
+      candles.splice(0, candles.length - FORECAST_V1.lookbackBars);
+    }
 
 // Futures staleness: clock-based, no equity RTH lag
   const latestTimestamp = Date.parse(candles.at(-1)?.timestamp ?? '');
-  const latestCompletedAt = latestTimestamp + ONE_HOUR_MS; // bar ends 1h after start
+  const latestStartSeconds = Math.floor( latestTimestamp / 1000,);
+  //const latestCompletedAt = latestTimestamp + ONE_HOUR_MS; // bar ends 1h after start
+  const latestCompletedAt =  candleCompletionSeconds(latestStartSeconds,session,) * 1000;
+  const expectedMarketReference = expectedMarketReferenceSeconds(nowSeconds,session,);
 
-  if (
-    !Number.isFinite(latestCompletedAt) ||
-    nowMs - latestCompletedAt > FUTURES_MAX_STALENESS_MS ||
-    nowMs - latestCompletedAt > FUTURES_MAX_SESSION_LAG_MS
-  ) {
-    // For futures, both checks are effectively "how old is the last completed bar?"
-    // Keep one clear condition:
-  }
-
-  if (
-    !Number.isFinite(latestCompletedAt) ||
-    nowMs - latestCompletedAt > FUTURES_MAX_STALENESS_MS
-  ) {
-    throw new ForecastDataFailure(
-      'STALE_MARKET_DATA',
-      'The latest completed one-hour candle is stale. Refresh market data and retry.',
-    );
+  if (!Number.isFinite(latestCompletedAt) ||nowMs - latestCompletedAt > FORECAST_MAX_STALENESS_MS ||
+    ( expectedMarketReference !== null && expectedMarketReference * 1000 - latestCompletedAt > FORECAST_MAX_SESSION_LAG_MS    )
+  ) {throw new ForecastDataFailure('STALE_MARKET_DATA','The latest completed one-hour candle is stale. Refresh market data and retry.',    );
   }
 
   return {
