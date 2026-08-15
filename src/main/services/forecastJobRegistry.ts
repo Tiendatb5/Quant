@@ -197,6 +197,20 @@ export class ForecastJobRegistry {
     this.jobsById.set(jobId, initial);
     this.latestJobBySymbol.set(request.symbol, jobId);
     this.activeJobId = jobId;
+
+    // Hard timeout – always release the global lock
+    const HARD_TIMEOUT_MS = 12 * 60 * 1000; // 12 minutes
+    const timeoutId = setTimeout(() => {
+      const current = this.jobsById.get(jobId);
+      if (current && isActiveForecastStage(current.stage)) {
+        this.fail(
+          jobId,
+          'FORECAST_TIMEOUT',
+          'Forecast timed out after 12 minutes and was force-failed so new forecasts can run.',
+        );
+      }
+    }, HARD_TIMEOUT_MS);
+
     this.notify(initial);
 
     void Promise.resolve()
@@ -302,6 +316,7 @@ export class ForecastJobRegistry {
         );
       })
       .finally(() => {
+        clearTimeout(timeoutId);          // ← add this
         this.cancellationHandlers.delete(jobId);
         if (this.activeJobId === jobId) this.activeJobId = null;
       });

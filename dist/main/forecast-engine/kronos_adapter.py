@@ -346,35 +346,64 @@ class KronosAdapter:
         return dict(self._metadata)
 
     def prepare(self, on_status=None, is_cancelled=None):
+
+        #// temp log
+        import sys, time
+        def _cp(msg):
+            print("[forecast-worker][cp] %.3f prepare:%s" % (time.time(), msg),
+                file=sys.stderr, flush=True)
+        _cp("enter")
+        _cp("sys.executable=%s" % sys.executable)
+        _cp("sys.path0=%s" % (sys.path[0] if sys.path else ""))
+
         if self._predictor is not None:
+            _cp("already ready")
             return self.metadata
         with self._lock:
+            _cp("got lock")
             if self._predictor is not None:
                 return self.metadata
             self._raise_if_cancelled(is_cancelled)
+            _cp("resolve root")
             root = resolve_kronos_root(self._explicit_root)
+            _cp("resolve commit")
             commit = resolve_kronos_commit(self._explicit_commit_path)
+            _cp("load manifest")
             manifest = load_model_manifest(self._manifest_path)
             tokenizer_artifact = manifest["artifacts"]["tokenizer"]
             model_artifact = manifest["artifacts"]["model"]
+            _cp("verify checkout")
             self._checkout_verifier(root, commit)
+            _cp("after verify – starting model load/download")
+            _cp("add import path")
             self._add_kronos_import_path(root)
             try:
-                torch = self._importer("torch")
-                self._torch = torch
-                self._numpy = self._importer("numpy")
-                self._pandas = self._importer("pandas")
-                hub = self._importer("huggingface_hub")
-                model_module = self._importer("model")
-                tokenizer_class = model_module.KronosTokenizer
-                model_class = model_module.Kronos
-                predictor_class = model_module.KronosPredictor
+                # CRITICAL: torch / hub may write to stdout during import.
+                # Electron pipes stdout for the NDJSON protocol; any non-line
+                 # buffered write can fill the pipe and deadlock the worker.
+                    import contextlib
+                    with contextlib.redirect_stdout(sys.stderr):
+                        _cp("import torch")
+                        torch = self._importer("torch")
+                        self._torch = torch
+                        _cp("import numpy")
+                        self._numpy = self._importer("numpy")
+                        _cp("import pandas")
+                        self._pandas = self._importer("pandas")
+                        _cp("import huggingface_hub")
+                        hub = self._importer("huggingface_hub")
+                        _cp("import model module")
+                        model_module = self._importer("model")
+                        tokenizer_class = model_module.KronosTokenizer
+                        model_class = model_module.Kronos
+                        predictor_class = model_module.KronosPredictor
+                        _cp("imports done")
             except Exception as error:
                 raise KronosAdapterError(
                     "ENGINE_SETUP_FAILED",
                     "Forecast engine dependencies are missing. Run `npm run setup:forecast`.",
                     "%s: %s" % (type(error).__name__, error),
-                ) from error
+            ) from error
 
             self._configure_deterministic_sampling(torch)
             runtime_device, metadata_device = self._select_device(torch)

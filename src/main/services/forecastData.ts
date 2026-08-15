@@ -341,8 +341,8 @@ function normalizeForecastCandlesFutures(
   }
 
   // We may scan the full Yahoo response so gaps do not starve the
-  // usable history, but Kronos must receive only the intended lookback.
-  const start = Math.max(0, completedEnd - FORECAST_V1.lookbackBars);
+  // Scan more history so we still have enough bars after dropping gaps
+  const start = Math.max(0, completedEnd - FORECAST_V1.lookbackBars * 2);
   const candles: ForecastHistoryCandle[] = [];
   let previousTime = -Infinity;
 
@@ -428,29 +428,33 @@ function normalizeForecastCandlesFutures(
   }
 
   //Then after the loop, enforce enough clean bars
-    if (candles.length < FORECAST_V1.minimumHistoryBars) {
-        throw new ForecastDataFailure(
-          'INSUFFICIENT_HISTORY',
-          `At least ${FORECAST_V1.minimumHistoryBars} completed one-hour candles are required; received ${candles.length} after dropping gaps.`,
-        );
-      }
-
-  // Cap for Kronos (this is what was missing)
-    if (candles.length > FORECAST_V1.lookbackBars) {
-      candles.splice(0, candles.length - FORECAST_V1.lookbackBars);
-    }
-
-// Futures staleness: clock-based, no equity RTH lag
-  const latestTimestamp = Date.parse(candles.at(-1)?.timestamp ?? '');
-  const latestStartSeconds = Math.floor( latestTimestamp / 1000,);
-  //const latestCompletedAt = latestTimestamp + ONE_HOUR_MS; // bar ends 1h after start
-  const latestCompletedAt =  candleCompletionSeconds(latestStartSeconds,session,) * 1000;
-  const expectedMarketReference = expectedMarketReferenceSeconds(nowSeconds,session,);
-
-  if (!Number.isFinite(latestCompletedAt) ||nowMs - latestCompletedAt > FORECAST_MAX_STALENESS_MS ||
-    ( expectedMarketReference !== null && expectedMarketReference * 1000 - latestCompletedAt > FORECAST_MAX_SESSION_LAG_MS    )
-  ) {throw new ForecastDataFailure('STALE_MARKET_DATA','The latest completed one-hour candle is stale. Refresh market data and retry.',    );
+  // After loop:
+  if (candles.length < FORECAST_V1.minimumHistoryBars) {
+    throw new ForecastDataFailure(
+      'INSUFFICIENT_HISTORY',
+      `At least ${FORECAST_V1.minimumHistoryBars} completed one-hour candles required after gap filtering; got ${candles.length}.`,
+    );
   }
+  if (candles.length > FORECAST_V1.lookbackBars) {
+    candles.splice(0, candles.length - FORECAST_V1.lookbackBars);
+  }
+
+    // Futures: pure clock-hour completion (ignore Yahoo RTH session)
+    const latestTimestamp = Date.parse(candles.at(-1)?.timestamp ?? '');
+    if (!Number.isFinite(latestTimestamp)) {
+      throw new ForecastDataFailure(
+        'INVALID_CANDLES',
+        'Could not determine latest futures candle timestamp.',
+      );
+    }
+    const latestCompletedAt = latestTimestamp + ONE_HOUR_MS;
+
+    if (nowMs - latestCompletedAt > FUTURES_MAX_STALENESS_MS) {
+      throw new ForecastDataFailure(
+        'STALE_MARKET_DATA',
+        'The latest completed one-hour futures candle is stale. Refresh market data and retry.',
+      );
+    }
 
   return {
     candles,

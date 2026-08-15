@@ -7,6 +7,13 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
+
+// Set a separate user data path when running unpackaged (dev mode)
+if (!app.isPackaged) {
+  app.setPath('userData', `${app.getPath('userData')}-dev`);
+}
+
+
 import { IPC } from '../shared/ipc';
 import { FORECAST_V1 } from '../shared/forecast';
 import type {
