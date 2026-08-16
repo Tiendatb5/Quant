@@ -17,14 +17,13 @@ const FORECAST_YAHOO_INTERVAL = '60m';
 const FORECAST_HISTORY_TTL_MS = 60_000;
 const ONE_HOUR_SECONDS = 60 * 60;
 const ONE_HOUR_MS = ONE_HOUR_SECONDS * 1000;
+
 /** Allows weekends and three-day market closures until Chunk 2.3 adds a calendar. */
 export const FORECAST_MAX_STALENESS_MS = 4 * 24 * 60 * 60 * 1000;
 const FORECAST_MAX_SESSION_LAG_MS = 2 * ONE_HOUR_MS;
 
-const FUTURES_MAX_STALENESS_MS = 6 * 60 * 60 * 1000; // 6h
-const FUTURES_MAX_SESSION_LAG_MS = 4 * 60 * 60 * 1000; // 4h
-
-
+/** Continuous futures (Globex): allow weekend + maintenance gaps. */
+const FUTURES_MAX_STALENESS_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 
 export interface ForecastHistoryProviderResult {
   source: DataSource;
@@ -439,17 +438,22 @@ function normalizeForecastCandlesFutures(
     candles.splice(0, candles.length - FORECAST_V1.lookbackBars);
   }
 
-    // Futures: pure clock-hour completion (ignore Yahoo RTH session)
-    const latestTimestamp = Date.parse(candles.at(-1)?.timestamp ?? '');
-    if (!Number.isFinite(latestTimestamp)) {
-      throw new ForecastDataFailure(
-        'INVALID_CANDLES',
-        'Could not determine latest futures candle timestamp.',
-      );
-    }
-    const latestCompletedAt = latestTimestamp + ONE_HOUR_MS;
+  // Futures: clock-based only. Do NOT use Yahoo "regular" session (RTH).
+  // Bar completes 1 hour after its open timestamp.
+  const latestTimestamp = Date.parse(candles.at(-1)?.timestamp ?? '');
+  const latestCompletedAt = latestTimestamp + ONE_HOUR_MS;
 
-    if (nowMs - latestCompletedAt > FUTURES_MAX_STALENESS_MS) {
+  // Cover weekend + daily maintenance gaps (Globex). 6h is too tight.
+  // 3 days matches practical continuous-futures availability from Yahoo 60m.
+  const futuresMaxStalenessMs =
+    typeof FUTURES_MAX_STALENESS_MS === 'number'
+      ? Math.max(FUTURES_MAX_STALENESS_MS, 3 * 24 * 60 * 60 * 1000)
+      : 3 * 24 * 60 * 60 * 1000;
+
+  if (
+      !Number.isFinite(latestCompletedAt) ||
+      nowMs - latestCompletedAt > futuresMaxStalenessMs
+    ) {
       throw new ForecastDataFailure(
         'STALE_MARKET_DATA',
         'The latest completed one-hour futures candle is stale. Refresh market data and retry.',

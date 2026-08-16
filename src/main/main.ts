@@ -96,6 +96,17 @@ const forecastWorker = new KronosWorker({
     ? undefined
     : configuredForecastPython ||
       (fs.existsSync(forecastVenvPython) ? forecastVenvPython : undefined),
+      
+  workerEnv: {
+    OMP_NUM_THREADS: '1',
+    MKL_NUM_THREADS: '1',
+    OPENBLAS_NUM_THREADS: '1',
+    VECLIB_MAXIMUM_THREADS: '1',
+    NUMEXPR_NUM_THREADS: '1',
+    KMP_DUPLICATE_LIB_OK: 'TRUE',
+    CUDA_VISIBLE_DEVICES: '', // force CPU; avoids CUDA init hang under Electron
+  },
+  
   onStderr: (message) => console.error(`[forecast-worker] ${message}`),
 });
 const forecastJobs = new ForecastJobRegistry({

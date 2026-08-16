@@ -526,3 +526,68 @@ export function nextCmeEquityIndexFuturesBarTimestamps(
     },
   };
 }
+
+/**
+ * Validate that timestamps are valid CME equity-index futures hourly bar opens:
+ * - America/New_York wall-clock hours
+ * - strictly increasing
+ * - aligned to the hour (minute === 0)
+ * - on a Globex trading day/hour (no Sat, no 17:00–18:00 break,
+ *   Fri ends at 17:00, Sun starts at 18:00)
+ */
+export function validateCmeEquityIndexFuturesBarTimestamps(
+  timestamps: readonly string[],
+  timezone: string,
+): boolean {
+  if (
+    timestamps.length === 0 ||
+    (timezone !== CME_FUTURES_TIMEZONE &&
+      timezone !== 'America/New_York' &&
+      timezone !== 'US/Eastern')
+  ) {
+    return false;
+  }
+
+  let previous = -Infinity;
+
+  for (const timestamp of timestamps) {
+    const timestampMs = Date.parse(timestamp);
+    if (
+      !Number.isFinite(timestampMs) ||
+      timestampMs <= previous ||
+      timestampMs % 60_000 !== 0
+    ) {
+      return false;
+    }
+    previous = timestampMs;
+
+    let ny: ReturnType<typeof getNyParts>;
+    try {
+      ny = getNyParts(timestampMs);
+    } catch {
+      return false;
+    }
+
+    // Must be exactly on the hour in America/New_York wall time
+    if (ny.minute !== 0) {
+      return false;
+    }
+
+    // Re-anchor and confirm the ISO string is the canonical NY hour stamp
+    // (guards against DST skew / non-canonical encodings)
+    const aligned = nyWallToUtcMs(ny.year, ny.month, ny.day, ny.hour, 0);
+    if (aligned !== timestampMs) {
+      return false;
+    }
+
+    const minuteOfDay = ny.hour * 60 + ny.minute;
+    if (
+      !isCmeEquityIndexFuturesTradingDay(ny.weekday) ||
+      !isGlobexHourAllowed(ny.weekday, minuteOfDay)
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}

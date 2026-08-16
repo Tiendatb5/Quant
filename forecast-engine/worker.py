@@ -6,9 +6,6 @@ import sys
 import threading
 import time
 
-#//log error
-import time
-
 def _cp(msg):
     """Checkpoint to stderr so Electron/kronosWorker onStderr can show it."""
     print(
@@ -506,6 +503,21 @@ def handle_request(request):
 def main():
     _cp("main enter")
     log("worker shell starting")
+
+    # Preload heavy deps on the MAIN thread. Importing torch from the
+    # background job thread deadlocks on many Windows + PyTorch builds.
+    if not TEST_MODE:
+        try:
+            import contextlib
+            with contextlib.redirect_stdout(sys.stderr):
+                import torch  # noqa: F401
+                import numpy  # noqa: F401
+                import pandas  # noqa: F401
+                import huggingface_hub  # noqa: F401
+            log("torch/numpy/pandas/hub preloaded on main thread")
+        except Exception as error:
+            log("preload failed: %s: %s" % (type(error).__name__, error))
+
     emit(
         {
             "type": "ready",

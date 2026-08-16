@@ -10,7 +10,10 @@ import type {
 import {
   nextUsMarketBarTimestamps,
   validateUsMarketBarTimestamps,
+  nextCmeEquityIndexFuturesBarTimestamps, 
+  validateCmeEquityIndexFuturesBarTimestamps,
 } from './forecastCalendar';
+
 import { normalizeSymbol } from './util';
 
 const INDEX_SCHEMA_VERSION = 1;
@@ -274,8 +277,16 @@ export function isForecastRecord(value: unknown): value is ForecastRecord {
     typeof provenance.exchange !== 'string' ||
     !provenance.exchange ||
     provenance.exchangeTimezone !== 'America/New_York' ||
-    provenance.marketCalendar !== 'US-equities-v1' ||
-    provenance.regularSession !== '09:30-16:00' ||
+    (
+      provenance.marketCalendar !== 'US-equities-v1' &&
+      provenance.marketCalendar !== 'CME-equity-index-futures-v1'
+    ) ||
+    (
+      provenance.regularSession !== '09:30-16:00' &&
+      provenance.regularSession !== '18:00-17:00-Globex'
+    ) ||
+   // provenance.marketCalendar !== 'US-equities-v1' ||
+   // provenance.regularSession !== '09:30-16:00' ||
     typeof provenance.modelId !== 'string' ||
     typeof provenance.tokenizerId !== 'string' ||
     typeof provenance.kronosCommit !== 'string' ||
@@ -303,25 +314,43 @@ export function isForecastRecord(value: unknown): value is ForecastRecord {
   const aggregateTimestamps = record.aggregate.map((point) => point.timestamp);
   let expectedTimestamps: string[];
   try {
-    expectedTimestamps = nextUsMarketBarTimestamps({
-      afterTimestamp: provenance.latestCompletedCandleAt,
-      count: FORECAST_V1.predictionBars,
-      exchange: provenance.exchange,
-      timezone: provenance.exchangeTimezone,
-    }).timestamps;
-  } catch {
-    return false;
-  }
+      if (provenance.marketCalendar === 'CME-equity-index-futures-v1') {
+        expectedTimestamps = nextCmeEquityIndexFuturesBarTimestamps({
+          afterTimestamp: provenance.latestCompletedCandleAt,
+          count: FORECAST_V1.predictionBars,
+          exchange: provenance.exchange,
+          timezone: provenance.exchangeTimezone,
+        }).timestamps;
+      } else {
+        expectedTimestamps = nextUsMarketBarTimestamps({
+          afterTimestamp: provenance.latestCompletedCandleAt,
+          count: FORECAST_V1.predictionBars,
+          exchange: provenance.exchange,
+          timezone: provenance.exchangeTimezone,
+        }).timestamps;
+      }
+    } catch {
+      return false;
+    }
+
+    const timestampsOk =
+      provenance.marketCalendar === 'CME-equity-index-futures-v1'
+        ? validateCmeEquityIndexFuturesBarTimestamps(
+            aggregateTimestamps,
+            provenance.exchangeTimezone,
+          )
+        : validateUsMarketBarTimestamps(
+            aggregateTimestamps,
+            provenance.exchangeTimezone,
+          );
+
   if (
     record.forecastStartAt !== aggregateTimestamps[0] ||
     record.forecastEndAt !== aggregateTimestamps.at(-1) ||
     !aggregateTimestamps.every(
       (timestamp, index) => timestamp === expectedTimestamps[index],
     ) ||
-    !validateUsMarketBarTimestamps(
-      aggregateTimestamps,
-      provenance.exchangeTimezone,
-    )
+    !timestampsOk
   ) {
     return false;
   }
