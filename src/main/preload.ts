@@ -113,6 +113,8 @@ const api: QuantApi = {
     ipcRenderer.invoke(IPC.valuationGet, symbol),
   scanSignals: (request?: SignalScanRequest): Promise<SignalScanResult> =>
     ipcRenderer.invoke(IPC.signalsScan, request),
+  getSignalDesk: (symbol: string): Promise<import('../shared/signalV2').SignalDeskResult> =>
+    ipcRenderer.invoke(IPC.signalDeskGet, symbol),
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke(IPC.openExternal, url),
 };

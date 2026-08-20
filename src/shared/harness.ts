@@ -41,14 +41,40 @@ export function buildQuantEvidence(req: QuantInsightRequest): QuantEvidenceItem[
     observedAt: evaluation.evaluatedAt,
     quality: evaluation.noTradeReasons.length ? 'warning' : 'verified',
   });
-  add({
-    category: 'market',
-    label: 'Historical strategy check',
-    value: `${evaluation.backtest.totalTrades} trades; win ${evaluation.backtest.winRate}%; expectancy ${evaluation.backtest.expectancy}R; profit factor ${evaluation.backtest.profitFactor}; max drawdown ${evaluation.backtest.maxDrawdown}R`,
-    source: `${evaluation.backtest.strategyName} ${evaluation.backtest.strategyVersion}`,
-    observedAt: evaluation.evaluatedAt,
-    quality: evaluation.backtest.totalTrades >= 20 ? 'verified' : 'warning',
-  });
+  if (req.signalValidation && req.signalValidation.status === 'ready') {
+    const val = req.signalValidation;
+    const ciText = val.expectancyCi95
+      ? `; 95% CI [${val.expectancyCi95.lower}R, ${val.expectancyCi95.upper}R]`
+      : '';
+    add({
+      category: 'market',
+      label: 'Setup-specific historical replay (V2)',
+      value: `${val.eligibleTrades} trades; win rate ${val.winRatePercent}%; expectancy ${val.expectancyR >= 0 ? '+' : ''}${val.expectancyR}R${ciText}; profit factor ${val.profitFactor}; sample ${val.evidenceStrength}`,
+      source: `${val.strategyVersion} (${val.executionModelVersion})`,
+      observedAt: val.historyEnd,
+      quality: val.eligibleTrades >= 15 ? 'verified' : 'warning',
+    });
+  } else {
+    add({
+      category: 'market',
+      label: 'Historical strategy check',
+      value: `${evaluation.backtest.totalTrades} trades; win ${evaluation.backtest.winRate}%; expectancy ${evaluation.backtest.expectancy}R; profit factor ${evaluation.backtest.profitFactor}; max drawdown ${evaluation.backtest.maxDrawdown}R`,
+      source: `${evaluation.backtest.strategyName} ${evaluation.backtest.strategyVersion}`,
+      observedAt: evaluation.evaluatedAt,
+      quality: evaluation.backtest.totalTrades >= 20 ? 'verified' : 'warning',
+    });
+  }
+  if (req.forwardSignalRecord && req.forwardSignalRecord.resolvedSignals > 0) {
+    const fwd = req.forwardSignalRecord;
+    add({
+      category: 'market',
+      label: 'Forward signal record (V2)',
+      value: `${fwd.resolvedSignals} resolved trades; win rate ${fwd.winRatePercent ?? 'n/a'}%; expectancy ${fwd.expectancyR !== null ? `${fwd.expectancyR >= 0 ? '+' : ''}${fwd.expectancyR}R` : 'n/a'}; active ${fwd.activeSignals}`,
+      source: 'quant-signal-outcomes-v1',
+      observedAt: fwd.lastResolvedAt,
+      quality: fwd.resolvedSignals >= 10 ? 'verified' : 'warning',
+    });
+  }
   if (req.earnings) {
     add({
       category: 'earnings',

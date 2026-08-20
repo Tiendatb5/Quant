@@ -351,7 +351,7 @@ function forecastStub() {
             evaluatedAt: new Date(now).toISOString(),
             actualFinalClose: matured ? points.at(-1).p50 + 0.8 : undefined,
             directionCorrect: matured ? true : undefined,
-            medianAbsolutePercentageError: matured ? 0.0068 : 0.0091,
+            meanAbsolutePercentageError: matured ? 0.0068 : 0.0091,
             p10P90Coverage: matured ? 0.875 : 0.75,
             actualPointsAvailable: points.length,
             expectedPoints: 24,

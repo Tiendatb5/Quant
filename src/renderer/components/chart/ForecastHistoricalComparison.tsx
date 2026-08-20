@@ -78,10 +78,10 @@ export function ForecastHistoricalComparison({
               </dd>
             </div>
             <div>
-              <dt>Median-line abs. % error</dt>
+              <dt>Mean abs. % error</dt>
               <dd className="num">
                 {formatForecastRatio(
-                  evaluation.medianAbsolutePercentageError ?? 0,
+                  evaluation.meanAbsolutePercentageError ?? 0,
                 )}
               </dd>
             </div>

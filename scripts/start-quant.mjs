@@ -39,11 +39,15 @@ function run(command, args, {
   env = process.env,
   label = command,
 } = {}) {
+  const isCmd =
+    process.platform === 'win32' &&
+    (typeof command === 'string' &&
+      (command.endsWith('.cmd') || command.endsWith('.bat')));
   const result = spawnSync(command, args, {
     cwd,
     env,
     stdio: 'inherit',
-    shell: false,
+    shell: isCmd,
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {

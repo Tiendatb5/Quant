@@ -79,6 +79,16 @@ export function saveQuantJournal(input: QuantJournalEntryInput): QuantJournalEnt
       target2: evaluation.risk.target2,
       rewardRisk1: evaluation.risk.rewardRisk1,
       blockers: evaluation.noTradeReasons.slice(0, 8),
+      historical: input.historicalValidation && input.historicalValidation.status === 'ready' ? {
+        trades: input.historicalValidation.eligibleTrades,
+        expectancyR: input.historicalValidation.expectancyR,
+        profitFactor: input.historicalValidation.profitFactor,
+        evidenceStrength: input.historicalValidation.evidenceStrength,
+      } : undefined,
+      forward: input.forwardRecord ? {
+        resolvedSignals: input.forwardRecord.resolvedSignals,
+        expectancyR: input.forwardRecord.expectancyR,
+      } : undefined,
     },
   };
   const next = [entry, ...existing.filter((item) => item.id !== entry.id)];

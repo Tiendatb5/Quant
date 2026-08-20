@@ -62,6 +62,12 @@ await build({
 });
 
 copyFileSync(r('src/renderer/index.html'), r('dist/renderer/index.html'));
+if (existsSync(r('src/renderer/assets'))) {
+  cpSync(r('src/renderer/assets'), r('dist/renderer/assets'), { recursive: true });
+}
+if (existsSync(r('src/main/assets'))) {
+  cpSync(r('src/main/assets'), r('dist/main/assets'), { recursive: true });
+}
 if (existsSync(r('src/main/data'))) {
   cpSync(r('src/main/data'), r('dist/main/data'), { recursive: true });
 }

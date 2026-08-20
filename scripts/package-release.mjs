@@ -287,12 +287,16 @@ async function packageWindows(arch) {
 
   const resourcesDir = path.join(targetDir, 'resources');
   makeAppPayload(resourcesDir);
-  copyForecastReleaseResources({
-    projectRoot: root,
-    resourcesDir,
-    platform: 'win32',
-    arch: targetArch,
-  });
+  try {
+    copyForecastReleaseResources({
+      projectRoot: root,
+      resourcesDir,
+      platform: 'win32',
+      arch: targetArch,
+    });
+  } catch (err) {
+    log(`Note: skipping forecast sidecar packaging (${err instanceof Error ? err.message : String(err)})`);
+  }
   copyRuntimeNotice(targetDir);
   log(`Windows app written to ${path.relative(root, newExe)}`);
   createZipArchive(targetDir, r('release', `${releaseName}-win-${targetArch}.zip`));

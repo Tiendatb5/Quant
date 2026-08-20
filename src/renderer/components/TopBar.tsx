@@ -8,6 +8,7 @@
 
 import '../styles/topbar.css';
 import React, { useEffect, useRef, useState } from 'react';
+import logoQuant from '../assets/logoQuant.png';
 import { useApp } from '../store';
 
 const ET_TIME = new Intl.DateTimeFormat('en-US', {
@@ -139,9 +140,7 @@ export function TopBar() {
   return (
     <div className="tb">
       <div className="tb-brand">
-        <span className="tb-glyph">
-          <CandleGlyph />
-        </span>
+        <img className="tb-logo" src={logoQuant} alt="Quant Logo" width="22" height="22" />
         <span className="tb-wordmark">QUANT</span>
       </div>
       <span className="tb-divider" aria-hidden="true" />

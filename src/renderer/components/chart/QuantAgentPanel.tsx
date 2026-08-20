@@ -126,6 +126,7 @@ export function QuantAgentPanel({
   symbol,
   range,
   evaluation,
+  signalDesk,
   pivotNews,
   earnings,
   valuation,
@@ -135,6 +136,7 @@ export function QuantAgentPanel({
   symbol: string;
   range: ChartRange;
   evaluation: SignalEvaluation | null;
+  signalDesk?: import('../../../shared/signalV2').SignalDeskResult | null;
   pivotNews: PivotNewsResult[];
   earnings: EarningsEvent | null;
   valuation: ValuationSnapshot | null;
@@ -167,6 +169,8 @@ export function QuantAgentPanel({
           symbol,
           range,
           evaluation,
+          signalValidation: signalDesk?.historical,
+          forwardSignalRecord: signalDesk?.forward,
           news,
           earnings,
           valuation,

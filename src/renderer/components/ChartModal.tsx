@@ -29,6 +29,7 @@ import { supportsProjectedMa20Interval } from './chart/forecastOverlayModel';
 import { PivotNewsPanel } from './chart/PivotNewsPanel';
 import { QuantAgentPanel } from './chart/QuantAgentPanel';
 import { QuantDecisionPanel } from './chart/QuantDecisionPanel';
+import { useSignalDesk } from './chart/useSignalDesk';
 import { computeTrendLines, findPivots } from './chart/analysis';
 import type { TrendLines } from './chart/analysis';
 import { useChartData } from './chart/useChartData';
@@ -265,6 +266,7 @@ export function ChartModal({ symbol }: { symbol: string }) {
     initialSettings.soundEnabled,
   );
   const { series: macroSeries, loading: macroLoading } = useMacroOverlays(range, overlays);
+  const { data: signalDesk, loading: signalDeskLoading } = useSignalDesk(symbol);
 
   const settledData = data?.range === range ? data : null;
   const rangeTransitioning = loading && data !== null && data.range !== range;
@@ -806,6 +808,8 @@ export function ChartModal({ symbol }: { symbol: string }) {
                 hidden={activeRailTab !== 'signal'}
               >
                 <QuantDecisionPanel
+                  signalDesk={signalDesk}
+                  loading={signalDeskLoading}
                   evaluation={evaluation}
                   earnings={earnings}
                   valuation={valuation}
@@ -856,6 +860,7 @@ export function ChartModal({ symbol }: { symbol: string }) {
                   symbol={symbol}
                   range={range}
                   evaluation={evaluation}
+                  signalDesk={signalDesk}
                   pivotNews={pivotNewsForAi}
                   earnings={earnings}
                   valuation={valuation}

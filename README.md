@@ -1,42 +1,68 @@
 # Quant
 
-Quant is an open-source desktop market terminal for tracking ETFs and stocks. It combines a reorderable watchlist, holdings-driven news, earnings context, annotated charts, macro overlays, evidence-backed signal scoring, local probabilistic forecasts, a decision journal, and an optional verified Quant AI harness.
+Quant is an open-source desktop market terminal for tracking ETFs and stocks. It combines a reorderable watchlist, holdings-driven news, earnings context, annotated charts, macro overlays, causal setup-specific signal validation, an authoritative 1D Signal Desk, local probabilistic forecasts, an evidence-backed decision journal, and a verified Quant AI harness.
 
-The core promise is simple: useful market context without paid API lock-in. Quant can run with public market data sources and deterministic signal analysis, use a private llama.cpp server, or connect to an optional OpenAI, Gemini, Grok, or Claude account. No cloud LLM API key is required for the default experience.
+The core promise is simple: useful market context without paid API lock-in. Quant runs with public market data sources and deterministic signal analysis, can connect to a private llama.cpp server, or interface with an optional OpenAI, Gemini, Grok, or Claude account. No cloud LLM API key is required for the default experience.
 
 <p align="center">
   <img src="./docs/assets/showcase/quant-hero.png" alt="Quant desktop market terminal hero image" width="100%">
 </p>
 
 <p align="center">
-  <a href="https://github.com/eisenjimmy/Quant"><img src="https://img.shields.io/badge/repo-eisenjimmy%2FQuant-4d7ef7" alt="Repository"></a>
-  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-1b2438" alt="Supported platforms">
-  <img src="https://img.shields.io/badge/local%20AI-optional-1fbf75" alt="Optional local AI">
-  <img src="https://img.shields.io/badge/cloud%20LLM-optional-1fbf75" alt="Optional cloud LLM providers">
-  <img src="https://img.shields.io/badge/release-v2.0.0-4d7ef7" alt="Quant v2.0.0">
-  <img src="https://img.shields.io/badge/license-MIT-6d95ff" alt="MIT license">
+  <a href="https://github.com/eisenjimmy/Quant"><img src="https://img.shields.io/badge/repo-eisenjimmy%2FQuant-4d7ef7?style=flat-square" alt="Repository"></a>
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows-1b2438?style=flat-square" alt="Supported platforms">
+  <img src="https://img.shields.io/badge/engine-Signal%20Engine%20V2-1fbf75?style=flat-square" alt="Signal Engine V2">
+  <img src="https://img.shields.io/badge/local%20AI-optional-1fbf75?style=flat-square" alt="Optional local AI">
+  <img src="https://img.shields.io/badge/cloud%20LLM-optional-1fbf75?style=flat-square" alt="Optional cloud LLM providers">
+  <img src="https://img.shields.io/badge/release-v2.1.0-4d7ef7?style=flat-square" alt="Quant v2.1.0">
+  <img src="https://img.shields.io/badge/license-MIT-6d95ff?style=flat-square" alt="MIT license">
 </p>
 
 ## What Quant Does
 
-Quant is built for quick market scanning:
+Quant is built for rapid, disciplined market scanning and evidence-backed decision making:
 
-- Track, reorder, and remove ETFs and stocks in a persistent desktop watchlist.
-- Expand ETF holdings into a broader market universe.
-- Read holdings-driven news and upcoming earnings.
-- Read a cross-asset Market Pulse with a committed five-state regime, evidence provenance, 90-session correlations, and deterministic shock analysis.
-- Open a full candlestick chart with pivots, support, resistance, and risk levels.
-- Screen the bundled U.S. stock universe for end-of-day technical signals such as cup bases, moving-average alignment, near-high setups, VCP, volume surges, MACD, and RS strength.
-- Inspect news at each detected swing so price action can be read with the surrounding headline context.
-- Toggle macro overlays directly on the chart: jobs, unemployment, CPI, 10Y yield, oil, and VIX.
-- Review a deterministic Signal Desk before asking an AI agent.
-- Inspect numbered evidence with source and quality status before acting on a signal.
-- Save a decision journal entry with the thesis, catalyst, invalidation, and exact signal snapshot.
-- Run an on-demand local Kronos forecast with 30 sampled paths across 24 future trading-hour bars.
-- Reopen immutable forecast snapshots and compare them with timestamp-aligned observed closes.
-- Use Quant AI in deterministic mode, through local llama.cpp, or with an optional OpenAI, Gemini, Grok, or Claude API key.
+- **Watchlist Workspace:** Track, reorder (drag & drop or `Alt + Arrow`), and remove ETFs and stocks in a persistent desktop watchlist.
+- **Holdings Expansion:** Expand major ETF holdings into a broader market universe with real-time price changes.
+- **Holdings News & Earnings:** Read curated news alongside upcoming earnings estimates, surprises, and reporting schedules.
+- **Cross-Asset Market Pulse:** 5-state committed regime engine, 90-session correlation matrices, and rate/oil/volatility shock analyzers.
+- **Causal Candlestick Charting:** Interactive multi-interval candlestick charts with automatic swing pivots, dynamic support/resistance channels, and risk-reward plans.
+- **Signal Board & Scanner:** Real-time screener with instant filtering by **`🟢 Buy Candidates`**, **`🔴 Short Candidates`**, Cup bases, MA alignments, 52W highs, VCP contractions, volume surges, and relative strength leaders.
+- **Authoritative 1D Signal Desk (V2):** Exact-setup causal classification delivering honest `BUY CANDIDATE`, `SHORT CANDIDATE`, `WAIT`, and `NO TRADE` decisions with transparent no-trade blocker explanations.
+- **Setup-Specific Historical Replay:** Lookahead-free 5-year daily replay modeling next-open entries, 5 bps slippage, pre-entry gap invalidations, same-bar stop priorities, and 10-bar timeout exits.
+- **Statistical Confidence Intervals:** Deterministic 95% bootstrap intervals on expectancy $R$ and 95% Wilson score intervals on positive trade rates.
+- **Forward Outcome Tracker:** Persistent forward signal recording (`quant-signal-outcomes-v1.json`) that resolves observed signals against subsequent daily bars.
+- **Macro Overlays:** Toggle jobs, unemployment, CPI, 10Y Treasury yield, crude oil, and VIX directly on price charts.
+- **Local Probabilistic Forecasts:** Run 24-trading-hour Kronos-mini time-series forecasts with 30 sampled paths and projected MA20 continuations.
+- **Evidence-Backed Decision Journal:** Save local thesis snapshots with immutable evidence items (E1–E5), quality audits, and trade plans.
+- **Verified Quant AI Desk:** Deterministic rule verifier paired with optional local llama.cpp or cloud LLMs (OpenAI, Gemini, Grok, Claude).
 
-## What's New in v2.0.0
+## What's New in v2.1.0 — Quant Signal Engine V2
+
+Quant v2.1.0 introduces **Quant Signal Engine V2**, completely overhauling the legacy generic rule score and unrelated breakout backtest with a causal, setup-specific, execution-aware, and self-validating signal system.
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                             QUANT SIGNAL ENGINE V2                               │
+├─────────────────────────┬────────────────────────────┬───────────────────────────┤
+│    1D Signal Desk       │    Historical Replay       │    Forward Outcome Store  │
+│  • Setup Quality /100   │  • Lookahead-Free Replay   │  • Persistent Local JSON  │
+│  • Honest Decision Badges│  • 5 bps Slippage Modeling │  • Deduplicated Logging   │
+│  • No-Trade Blockers    │  • Gap Invalidation & Stopp│  • 10-Bar Forward Resolve │
+│  • Balanced 6-Factor Grp│  • 95% Bootstrap Expectancy│  • Wilson Win Rate CI     │
+└─────────────────────────┴────────────────────────────┴───────────────────────────┘
+```
+
+### Key V2 Features:
+
+- **Signal Board Candidate Filters:** Screen the market universe directly for `🟢 Buy Candidates` and `🔴 Short Candidates` with live Setup Quality scores (`quality 82/100`) and candidate badges.
+- **Causal Setup-Specific Historical Validation:** Replaced legacy breakout backtests with strict, lookahead-free replay across 5 years of daily history for the exact setup and direction.
+- **Execution Simulator with Realistic Friction:** Next-open entry, 5 bps slippage, pre-entry gap invalidations (`gap-invalidated`, `gap-beyond-target`, `rr-invalidated`), conservative same-bar stop priority, and 10-bar timeout exits.
+- **Bootstrap & Wilson Confidence Intervals:** Deterministic `mulberry32` PRNG bootstrap 95% CI on expectancy $R$ and 95% Wilson score CI on win rate.
+- **Persistent Forward Outcome Store:** Automatically logs live candidate emissions to `quant-signal-outcomes-v1.json` and evaluates trade resolution over subsequent daily bars.
+- **AI Evidence Ledger (V2):** Immutable numbered evidence snapshots (E1–E5) supplying setup-specific replay and forward metrics to the Quant AI analyst and verifier.
+
+## What's New in v2.0.0 — Local Probabilistic Forecasting
 
 New:
 
@@ -541,10 +567,10 @@ npm run package:all
 Outputs:
 
 ```text
-release/Quant-v2.0.0-mac-arm64/Quant.app
-release/Quant-v2.0.0-mac-arm64.zip
-release/Quant-v2.0.0-win-x64/Quant.exe
-release/Quant-v2.0.0-win-x64.zip
+release/Quant-v2.1.0-mac-arm64/Quant.app
+release/Quant-v2.1.0-mac-arm64.zip
+release/Quant-v2.1.0-win-x64/Quant.exe
+release/Quant-v2.1.0-win-x64.zip
 ```
 
 The version is embedded in both the release folder and archive name so a new package never silently replaces the previous release.

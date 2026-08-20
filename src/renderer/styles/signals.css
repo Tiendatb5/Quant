@@ -303,6 +303,22 @@
   background: var(--accent-soft);
 }
 
+.sb-badge.is-buy-candidate {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.sb-badge.is-short-candidate {
+  color: #f43f5e;
+  background: rgba(244, 63, 94, 0.16);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
 .sb-row-meta {
   display: flex;
   flex-wrap: wrap;

@@ -51,6 +51,7 @@ import { getQuotes } from './services/quotes';
 import { getValuation } from './services/valuation';
 import { sampleChart, sampleEarnings, sampleNews, sampleQuote } from './services/sample';
 import { cleanSignalScanRequest, scanSignals } from './services/signalScanner';
+import { getSignalDesk, unavailableSignalDesk } from './services/signalDesk';
 import { searchSymbols } from './services/symbols';
 import { clampInt, cleanSymbolList, normalizeSymbol, todayYmd } from './services/util';
 import {
@@ -419,6 +420,17 @@ function registerIpcHandlers(): void {
     }
   });
 
+  ipcMain.handle(IPC.signalDeskGet, async (_e, rawSymbol: unknown) => {
+    const symbol = normalizeSymbol(rawSymbol);
+    if (!symbol) return unavailableSignalDesk('', 'Invalid symbol');
+    try {
+      return await getSignalDesk(symbol);
+    } catch (error) {
+      console.error('[signal-desk] failed:', error);
+      return unavailableSignalDesk(symbol, 'Signal Desk could not load.');
+    }
+  });
+
   ipcMain.handle(IPC.forecastRun, (_e, rawRequest: unknown) => {
     return forecastJobs.start(rawRequest);
   });
@@ -602,6 +614,7 @@ function createWindow(): void {
     backgroundColor: '#0a0e16',
     autoHideMenuBar: true,
     title: 'Quant',
+    icon: path.join(__dirname, 'assets/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

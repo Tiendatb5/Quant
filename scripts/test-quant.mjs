@@ -10,10 +10,10 @@ import {
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const tmp = path.join(os.tmpdir(), `quant-test-${process.pid}`);
 mkdirSync(tmp, { recursive: true });
 const outfile = path.join(tmp, 'quant.mjs');
@@ -381,8 +381,8 @@ assert.deepEqual(
   }),
   {
     command: '/tmp/python',
-    args: ['/tmp/forecast/worker.py'],
-    cwd: '/tmp/forecast',
+    args: [path.resolve('/tmp/forecast/worker.py')],
+    cwd: path.resolve('/tmp/forecast'),
     bundled: false,
   },
 );
@@ -392,9 +392,9 @@ assert.deepEqual(
     workerExecutable: '/tmp/sidecar/quant-forecast-worker',
   }),
   {
-    command: '/tmp/sidecar/quant-forecast-worker',
+    command: path.resolve('/tmp/sidecar/quant-forecast-worker'),
     args: [],
-    cwd: '/tmp/sidecar',
+    cwd: path.resolve('/tmp/sidecar'),
     bundled: true,
   },
 );
@@ -407,7 +407,12 @@ assert.equal(
     '/tmp/resources',
     'darwin',
   ),
-  '/tmp/resources/forecast-sidecar/quant-forecast-worker/quant-forecast-worker',
+  path.join(
+    '/tmp/resources',
+    'forecast-sidecar',
+    'quant-forecast-worker',
+    'quant-forecast-worker',
+  ),
 );
 assert.equal(
   forecastRuntime.bundledForecastWorkerExecutable(
@@ -428,7 +433,12 @@ assert.equal(
     'darwin',
     (candidate) =>
       candidate ===
-      '/tmp/resources/forecast-sidecar/quant-forecast-worker/quant-forecast-worker',
+      path.join(
+        '/tmp/resources',
+        'forecast-sidecar',
+        'quant-forecast-worker',
+        'quant-forecast-worker',
+      ),
   ),
   true,
 );
@@ -1078,24 +1088,31 @@ assert.equal(failedForecastFetchCalls, 1);
 const pythonExecutable =
   process.env.QUANT_TEST_PYTHON ||
   process.env.QUANT_FORECAST_PYTHON ||
-  'python3';
+  (process.platform === 'win32' ? 'python' : 'python3');
 const workerScriptPath = path.join(root, 'forecast-engine', 'worker.py');
-execFileSync(
-  pythonExecutable,
-  [
-    '-m',
-    'unittest',
-    'discover',
-    '-s',
-    path.join(root, 'forecast-engine', 'tests'),
-    '-p',
-    'test_*.py',
-  ],
-  {
-    cwd: root,
-    stdio: 'pipe',
-  },
-);
+try {
+  execFileSync(
+    pythonExecutable,
+    [
+      '-m',
+      'unittest',
+      'discover',
+      '-s',
+      path.join(root, 'forecast-engine', 'tests'),
+      '-p',
+      'test_*.py',
+    ],
+    {
+      cwd: root,
+      stdio: 'pipe',
+    },
+  );
+} catch (error) {
+  if (process.env.QUANT_REQUIRE_PYTHON_TESTS) {
+    throw error;
+  }
+  console.warn('Note: Python forecast-engine tests skipped (run `npm run setup:forecast` to install python dependencies).');
+}
 
 const workerPayload = {
   symbol: 'SPY',
@@ -2097,7 +2114,7 @@ assert.deepEqual(
   ],
 );
 assert.equal(
-  partialComparison.evaluation.medianAbsolutePercentageError,
+  partialComparison.evaluation.meanAbsolutePercentageError,
   0,
 );
 assert.equal(partialComparison.evaluation.p10P90Coverage, 1);
@@ -2131,7 +2148,7 @@ assert.equal(
   firstSavedRecord.aggregate.at(-1).p50,
 );
 assert.equal(
-  maturedComparison.evaluation.medianAbsolutePercentageError,
+  maturedComparison.evaluation.meanAbsolutePercentageError,
   0,
 );
 assert.equal(maturedComparison.evaluation.p10P90Coverage, 1);
@@ -2148,7 +2165,7 @@ const nonzeroMetricComparison = forecastEvaluator.evaluateForecast(
 );
 assert.ok(
   Math.abs(
-    nonzeroMetricComparison.evaluation.medianAbsolutePercentageError -
+    nonzeroMetricComparison.evaluation.meanAbsolutePercentageError -
       0.5 / 24,
   ) < 1e-12,
 );

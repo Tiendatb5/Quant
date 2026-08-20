@@ -24,6 +24,7 @@ export const IPC = {
   llmConnectionTest: 'llm-settings:test',
   valuationGet: 'valuation:get',
   signalsScan: 'signals:scan',
+  signalDeskGet: 'signal-desk:get',
   forecastRun: 'forecast:run',
   forecastCancel: 'forecast:cancel',
   forecastGetJob: 'forecast:get-job',
