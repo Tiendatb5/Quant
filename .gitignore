@@ -16,6 +16,7 @@ __pycache__/
 
 # Local release build artifacts and download cache
 .release-cache/
-release/
+release/*
+!release/*.zip
 sidecars/
 build/quant-forecast-worker/

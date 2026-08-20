@@ -2,6 +2,24 @@
 
 All notable changes to Quant are documented here.
 
+## [2.1.0] - 2026-08-19
+
+### Added
+- Added **Quant Signal Engine V2**, replacing legacy generic score + breakout backtest with a causal, setup-specific, execution-aware signal system.
+- Added **Signal Board Candidate Filtering** with dedicated `🟢 Buy Candidates` and `🔴 Short Candidates` filter pills, live Setup Quality scores (`quality 82/100`), candidate badges, and active count summary meters.
+- Added **Authoritative 1D Signal Desk** backend service and `useSignalDesk` hook, decoupled from visual chart timeframe/zoom.
+- Added **Causal Historical Strategy Validator** with lookahead-free 5-year daily replay, exact setup/direction matching, and single-position non-overlapping execution constraint.
+- Added **Execution Simulator** modeling next-open entries, 5 bps slippage, pre-entry gap invalidations (`gap-invalidated`, `gap-beyond-target`, `rr-invalidated`), conservative same-bar stop priorities, and 10-bar timeout exits.
+- Added **Bootstrap & Wilson Confidence Intervals** via deterministic `mulberry32` PRNG for expectancy $R$ and win rates.
+- Added **Forward Signal Outcome Store** (`quant-signal-outcomes-v1.json`) with atomic writes, deduplicated emissions, and forward trade resolution against subsequent daily bars.
+- Added new branding and app icon with the blue fox 'Q' logo across titlebars, dock/taskbar icons, HTML favicon, and the top-left terminal header.
+- Added 14-part automated Signal V2 test suite (`npm run test:signal-v2`) and screener smoke test (`npm run smoke:signals`).
+
+### Fixed
+- Fixed short candle confirmation scoring bug in `quant.ts` via `bearishCloseConfirmed`.
+- Fixed MAPE labeling consistency (`meanAbsolutePercentageError`) across types and UI components.
+- Deprecated legacy `runBacktest()` in favor of setup-specific causal validation.
+
 ## [2.0.1] - 2026-08-01
 
 ### Fixed
