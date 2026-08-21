@@ -165,7 +165,7 @@ export interface ForecastEvaluation {
   evaluatedAt?: string;
   actualFinalClose?: number;
   directionCorrect?: boolean;
-  medianAbsolutePercentageError?: number;
+  meanAbsolutePercentageError?: number;
   p10P90Coverage?: number;
   actualPointsAvailable: number;
   expectedPoints: number;

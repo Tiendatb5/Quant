@@ -8,6 +8,8 @@ import type {
   SymbolSuggestion,
 } from '../../shared/types';
 import { detectStockSignals } from '../../shared/signals';
+import { evaluateSignalCore } from '../../shared/quant';
+import { findPivots } from '../../shared/priceStructure';
 import { TtlCache } from './cache';
 import { getChart } from './chart';
 import { getSymbolDirectory } from './dataFiles';
@@ -38,6 +40,8 @@ function compactSparkline(values: number[], points = 34): number[] {
 function cleanSignalKinds(raw: unknown): SignalKind[] {
   if (!Array.isArray(raw)) return [];
   const allowed = new Set<SignalKind>([
+    'buy-candidate',
+    'short-candidate',
     'cup-forming',
     'cup-handle',
     'ma-alignment',
@@ -152,6 +156,28 @@ export async function scanSignals(rawRequest?: unknown): Promise<SignalScanResul
         if (!latest) return null;
         const detection = detectStockSignals(candles);
         returns126.set(entry.symbol, detection.metrics.return126);
+
+        const pivots = findPivots(candles);
+        const coreEval = evaluateSignalCore(entry.symbol, candles, pivots);
+
+        if (coreEval.decision === 'buy-candidate') {
+          detection.signals.unshift({
+            kind: 'buy-candidate',
+            label: 'BUY CANDIDATE',
+            score: Math.max(25, Math.round(coreEval.setupQuality / 3)),
+            detail: `${coreEval.setupType}: ${coreEval.reason} (Quality ${coreEval.setupQuality}/100)`,
+            tone: 'bullish',
+          });
+        } else if (coreEval.decision === 'short-candidate') {
+          detection.signals.unshift({
+            kind: 'short-candidate',
+            label: 'SHORT CANDIDATE',
+            score: Math.max(25, Math.round(coreEval.setupQuality / 3)),
+            detail: `${coreEval.setupType}: ${coreEval.reason} (Quality ${coreEval.setupQuality}/100)`,
+            tone: 'hot',
+          });
+        }
+
         return {
           symbol: entry.symbol,
           name: entry.name,
@@ -167,6 +193,9 @@ export async function scanSignals(rawRequest?: unknown): Promise<SignalScanResul
           signals: detection.signals,
           sparkline: compactSparkline(candles.slice(-90).map((c) => c.close)),
           source: chart.source,
+          decision: coreEval.decision,
+          setupType: coreEval.setupType,
+          setupQuality: coreEval.setupQuality,
         };
       }),
     ),
@@ -200,6 +229,8 @@ export async function scanSignals(rawRequest?: unknown): Promise<SignalScanResul
       row.signals.some((s) => s.kind === 'cup-forming' || s.kind === 'cup-handle'),
     ).length,
     maAlignedCount: rows.filter((row) => row.signals.some((s) => s.kind === 'ma-alignment')).length,
+    buyCandidateCount: allRows.filter((row) => row.decision === 'buy-candidate' || row.signals.some((s) => s.kind === 'buy-candidate')).length,
+    shortCandidateCount: allRows.filter((row) => row.decision === 'short-candidate' || row.signals.some((s) => s.kind === 'short-candidate')).length,
     source,
   };
 

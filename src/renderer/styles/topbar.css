@@ -20,6 +20,14 @@
   color: var(--text-1);
 }
 
+.tb-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .tb-glyph {
   display: flex;
   color: var(--accent);

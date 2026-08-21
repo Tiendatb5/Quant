@@ -39,39 +39,43 @@ function isFiniteNumber(v: number | null | undefined): v is number {
   return typeof v === 'number' && Number.isFinite(v);
 }
 
+export function yahooResultToCandles(result: import('./yahoo').YahooChartResult): Candle[] {
+  const timestamps = Array.isArray(result.timestamp) ? result.timestamp : [];
+  const quote = result.indicators?.quote?.[0] ?? {};
+  const opens = quote.open ?? [];
+  const highs = quote.high ?? [];
+  const lows = quote.low ?? [];
+  const closes = quote.close ?? [];
+  const volumes = quote.volume ?? [];
+
+  const bySecond = new Map<number, Candle>();
+  for (let i = 0; i < timestamps.length; i++) {
+    const time = timestamps[i];
+    const close = closes[i];
+    if (!isFiniteNumber(time) || !isFiniteNumber(close)) continue;
+    const rawOpen = opens[i];
+    const rawHigh = highs[i];
+    const rawLow = lows[i];
+    const rawVolume = volumes[i];
+    const open = isFiniteNumber(rawOpen) ? rawOpen : close;
+    let high = isFiniteNumber(rawHigh) ? rawHigh : Math.max(open, close);
+    let low = isFiniteNumber(rawLow) ? rawLow : Math.min(open, close);
+    high = Math.max(high, open, close);
+    low = Math.min(low, open, close);
+    const volume = isFiniteNumber(rawVolume) ? rawVolume : 0;
+    // last write wins for duplicate timestamps (Yahoo repeats the live bar)
+    bySecond.set(Math.floor(time), { time: Math.floor(time), open, high, low, close, volume });
+  }
+
+  return [...bySecond.values()].sort((a, b) => a.time - b.time);
+}
+
 export async function getChart(symbol: string, range: ChartRange): Promise<ChartData> {
   const spec = RANGE_MAP[range];
   try {
     const result = await fetchYahooChart(symbol, spec.yahooRange, spec.interval, spec.ttlMs);
     const meta = result.meta ?? {};
-    const timestamps = Array.isArray(result.timestamp) ? result.timestamp : [];
-    const quote = result.indicators?.quote?.[0] ?? {};
-    const opens = quote.open ?? [];
-    const highs = quote.high ?? [];
-    const lows = quote.low ?? [];
-    const closes = quote.close ?? [];
-    const volumes = quote.volume ?? [];
-
-    const bySecond = new Map<number, Candle>();
-    for (let i = 0; i < timestamps.length; i++) {
-      const time = timestamps[i];
-      const close = closes[i];
-      if (!isFiniteNumber(time) || !isFiniteNumber(close)) continue;
-      const rawOpen = opens[i];
-      const rawHigh = highs[i];
-      const rawLow = lows[i];
-      const rawVolume = volumes[i];
-      const open = isFiniteNumber(rawOpen) ? rawOpen : close;
-      let high = isFiniteNumber(rawHigh) ? rawHigh : Math.max(open, close);
-      let low = isFiniteNumber(rawLow) ? rawLow : Math.min(open, close);
-      high = Math.max(high, open, close);
-      low = Math.min(low, open, close);
-      const volume = isFiniteNumber(rawVolume) ? rawVolume : 0;
-      // last write wins for duplicate timestamps (Yahoo repeats the live bar)
-      bySecond.set(Math.floor(time), { time: Math.floor(time), open, high, low, close, volume });
-    }
-
-    const candles = [...bySecond.values()].sort((a, b) => a.time - b.time);
+    const candles = yahooResultToCandles(result);
     if (candles.length === 0) throw new Error(`no usable candles for ${symbol} ${range}`);
 
     return {

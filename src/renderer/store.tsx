@@ -330,15 +330,18 @@ export function useFocusSymbols(filterOverride?: string): FocusSymbols {
       }
     };
     for (const item of items) {
-      if (item.type === 'stock') {
-        push(item.symbol);
-      } else {
+      if (item.type === 'etf') {
         const h = state.holdings[item.symbol];
         if (!h) {
           ready = false;
           continue;
         }
-        for (const holding of h.holdings.slice(0, 20)) push(holding.symbol, item.symbol);
+        for (const holding of h.holdings.slice(0, 20)) {
+          push(holding.symbol, item.symbol);
+        }
+      } else {
+        // stock, index, future → use the symbol itself; no holdings expansion
+        push(item.symbol);
       }
     }
     return { symbols, parents, ready };

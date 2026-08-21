@@ -12,6 +12,8 @@ import { useApp } from '../store';
 
 const SIGNAL_FILTERS: Array<{ kind: SignalKind | 'all'; label: string }> = [
   { kind: 'all', label: 'All' },
+  { kind: 'buy-candidate', label: '🟢 Buy Candidates' },
+  { kind: 'short-candidate', label: '🔴 Short Candidates' },
   { kind: 'cup-forming', label: 'Cup' },
   { kind: 'cup-handle', label: 'Cup handle' },
   { kind: 'ma-alignment', label: 'MA alignment' },
@@ -67,8 +69,14 @@ function Sparkline({ values, positive }: { values: number[]; positive: boolean }
 }
 
 function SignalBadge({ signal }: { signal: DetectedSignal }) {
+  const toneClass =
+    signal.kind === 'buy-candidate'
+      ? 'is-buy-candidate'
+      : signal.kind === 'short-candidate'
+        ? 'is-short-candidate'
+        : `is-${signal.tone}`;
   return (
-    <span className={`sb-badge is-${signal.tone}`} title={signal.detail}>
+    <span className={`sb-badge ${toneClass}`} title={signal.detail}>
       {signal.label}
     </span>
   );
@@ -120,12 +128,23 @@ function filterRow(row: SignalScanRow, signalFilter: SignalKind | 'all', query: 
     return false;
   }
   if (signalFilter === 'all') return true;
+  if (signalFilter === 'buy-candidate') {
+    return row.decision === 'buy-candidate' || row.signals.some((s) => s.kind === 'buy-candidate');
+  }
+  if (signalFilter === 'short-candidate') {
+    return row.decision === 'short-candidate' || row.signals.some((s) => s.kind === 'short-candidate');
+  }
   return row.signals.some((signal) => signal.kind === signalFilter);
 }
 
 function rowSignals(row: SignalScanRow, signalFilter: SignalKind | 'all'): DetectedSignal[] {
   if (signalFilter === 'all') return row.signals.slice(0, 7);
-  return row.signals.filter((signal) => signal.kind === signalFilter);
+  return row.signals.filter((signal) => {
+    if (signalFilter === 'buy-candidate' || signalFilter === 'short-candidate') {
+      return signal.kind === signalFilter || signal.kind === 'buy-candidate' || signal.kind === 'short-candidate';
+    }
+    return signal.kind === signalFilter;
+  });
 }
 
 export function SignalBoard() {
@@ -181,7 +200,7 @@ export function SignalBoard() {
       <header className="sb-head">
         <div>
           <h2>Today&apos;s Signals</h2>
-          <p>Daily-candle technical scan for cup bases, moving-average alignment, highs, VCP, volume, and momentum.</p>
+          <p>Daily-candle technical scan for Buy/Short candidates, cup bases, moving-average alignment, highs, VCP, volume, and momentum.</p>
         </div>
         <div className="sb-head-actions">
           <span className="sb-asof">
@@ -228,11 +247,11 @@ export function SignalBoard() {
 
       <div className="sb-summary" aria-label="Signal scan summary">
         <div className="qn-stagger" style={{ '--motion-index': 0 } as CSSProperties}><SummaryMeter label="Coverage" value={coverageValue} detail={coverageDetail} tone="neutral" /></div>
-        <div className="qn-stagger" style={{ '--motion-index': 1 } as CSSProperties}><SummaryMeter label="Signal breadth" value={result ? `${result.summary.bullishPercent}%` : '--'} detail={`${activeCount} visible matches`} tone="up" /></div>
-        <div className="qn-stagger" style={{ '--motion-index': 2 } as CSSProperties}><SummaryMeter label="Heat" value={result ? String(result.summary.hotCount) : '--'} detail="hot signals" tone="hot" /></div>
-        <div className="qn-stagger" style={{ '--motion-index': 3 } as CSSProperties}><SummaryMeter label="Near highs" value={result ? String(result.summary.nearHighCount) : '--'} detail="52W proximity" tone="up" /></div>
-        <div className="qn-stagger" style={{ '--motion-index': 4 } as CSSProperties}><SummaryMeter label="Bases" value={result ? String(result.summary.cupCount) : '--'} detail="cup patterns" tone="neutral" /></div>
-        <div className="qn-stagger" style={{ '--motion-index': 5 } as CSSProperties}><SummaryMeter label="MA order" value={result ? String(result.summary.maAlignedCount) : '--'} detail="bullish stacks" tone="up" /></div>
+        <div className="qn-stagger" style={{ '--motion-index': 1 } as CSSProperties}><SummaryMeter label="Buy candidates" value={result ? String(result.summary.buyCandidateCount ?? 0) : '--'} detail={`${result?.summary.buyCandidateCount ?? 0} active long`} tone="up" /></div>
+        <div className="qn-stagger" style={{ '--motion-index': 2 } as CSSProperties}><SummaryMeter label="Short candidates" value={result ? String(result.summary.shortCandidateCount ?? 0) : '--'} detail={`${result?.summary.shortCandidateCount ?? 0} active short`} tone="hot" /></div>
+        <div className="qn-stagger" style={{ '--motion-index': 3 } as CSSProperties}><SummaryMeter label="Signal breadth" value={result ? `${result.summary.bullishPercent}%` : '--'} detail={`${activeCount} visible`} tone="neutral" /></div>
+        <div className="qn-stagger" style={{ '--motion-index': 4 } as CSSProperties}><SummaryMeter label="Near highs" value={result ? String(result.summary.nearHighCount) : '--'} detail="52W proximity" tone="up" /></div>
+        <div className="qn-stagger" style={{ '--motion-index': 5 } as CSSProperties}><SummaryMeter label="MA order" value={result ? String(result.summary.maAlignedCount) : '--'} detail="bullish stacks" tone="neutral" /></div>
       </div>
 
       <div className="sb-filters" aria-label="Signal filters">
@@ -279,7 +298,8 @@ export function SignalBoard() {
                 <span className="sb-company">
                   <strong>{row.name}</strong>
                   <em>
-                    {row.symbol} · {row.exchange ?? 'US'} · score {row.score}
+                    {row.symbol} · {row.exchange ?? 'US'}
+                    {row.setupQuality !== undefined ? ` · quality ${row.setupQuality}/100` : ` · score ${row.score}`}
                   </em>
                 </span>
                 <span className="sb-row-signals">

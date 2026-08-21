@@ -1,4 +1,6 @@
 import type { Candle, PivotPoint } from './types';
+import type { SignalCoreEvaluation } from './signalV2';
+import { SIGNAL_ENGINE_V2 } from './signalV2';
 
 export type SignalStatus = 'pass' | 'fail' | 'warning' | 'neutral';
 export type TradeDecision =
@@ -372,12 +374,28 @@ function statusScore(status: SignalStatus, pass: number, warn = -5): number {
   return 0;
 }
 
-export function evaluateSignal(
+export function bullishCloseConfirmed(c: Candle): boolean {
+  const midpoint = (c.high + c.low) / 2;
+  return c.close > c.open && c.close > midpoint;
+}
+
+export function bearishCloseConfirmed(c: Candle): boolean {
+  const midpoint = (c.high + c.low) / 2;
+  return c.close < c.open && c.close < midpoint;
+}
+
+export interface SignalEvaluationOptions {
+  evaluatedAt?: string;
+  timeframe?: '1d';
+}
+
+export function evaluateSignalCore(
   symbol: string,
   candles: Candle[],
   pivots: PivotPoint[],
   settings: RiskSettings = DEFAULT_RISK_SETTINGS,
-): SignalEvaluation {
+  options: SignalEvaluationOptions = {},
+): SignalCoreEvaluation {
   const current = last(candles);
   const analytics = analyticsFor(candles, pivots);
   const regime = classifyRegime(candles);
@@ -416,14 +434,26 @@ export function evaluateSignal(
       : 'Volume is not yet meaningfully above the 20-bar average.',
   );
 
-  const closeOk = current ? current.close > Math.max(current.open, (current.high + current.low) / 2) : false;
+  const candleConfirmed =
+    !current
+      ? false
+      : direction === 'long'
+        ? bullishCloseConfirmed(current)
+        : direction === 'short'
+          ? bearishCloseConfirmed(current)
+          : false;
+  const candleStatus: SignalStatus = direction === 'none' ? 'neutral' : candleConfirmed ? 'pass' : 'warning';
   add(
     'Candle close confirmation',
-    direction === 'short' ? (current && current.close < Math.min(current.open, (current.high + current.low) / 2) ? 'pass' : 'warning') : closeOk ? 'pass' : 'warning',
-    statusScore(closeOk || direction === 'short' ? 'pass' : 'warning', 12, -5),
-    closeOk
-      ? 'The latest candle closed in the upper half of its range.'
-      : 'The latest candle has not confirmed with a decisive close.',
+    candleStatus,
+    direction === 'none' ? 0 : statusScore(candleStatus, 12, -5),
+    direction === 'none'
+      ? 'No directional setup is strong enough to require candle confirmation.'
+      : candleConfirmed
+        ? direction === 'long'
+          ? 'The latest candle closed in the upper half of its range.'
+          : 'The latest candle closed in the lower half of its range.'
+        : 'The latest candle has not confirmed with a decisive close.',
   );
 
   const rrOk = risk.rewardRisk1 >= settings.minimumRewardRisk;
@@ -471,6 +501,27 @@ export function evaluateSignal(
       : 'Price is not excessively extended from its 20-period mean.',
   );
 
+  const maMomentum =
+    direction === 'long'
+      ? analytics.sma20 && analytics.sma50
+        ? analytics.sma20 >= analytics.sma50
+        : true
+      : direction === 'short'
+        ? analytics.sma20 && analytics.sma50
+          ? analytics.sma20 <= analytics.sma50
+          : true
+        : true;
+  add(
+    'Moving average momentum',
+    direction === 'none' ? 'neutral' : maMomentum ? 'pass' : 'warning',
+    direction === 'none' ? 0 : statusScore(maMomentum ? 'pass' : 'warning', 7, -4),
+    direction === 'none'
+      ? 'No directional thesis active.'
+      : maMomentum
+        ? `Moving average structure supports ${direction} momentum.`
+        : `Moving average structure is lagging the ${direction} setup.`,
+  );
+
   const noTradeReasons: string[] = [];
   if (setupType === 'no-clear-setup') noTradeReasons.push('No clear setup is classified.');
   if (regime === 'choppy') noTradeReasons.push('Market regime is choppy/noisy.');
@@ -481,12 +532,12 @@ export function evaluateSignal(
   if (extended) noTradeReasons.push('Price is extended more than the configured ATR distance from mean.');
   if (risk.positionSize <= 0 && direction !== 'none') noTradeReasons.push('Position size resolves to zero under current risk settings.');
 
-  const rawConfidence = components.reduce((sum, c) => sum + c.score, 35);
-  const confidence = Math.max(0, Math.min(100, Math.round(rawConfidence)));
+  const rawConfidence = components.reduce((sum, c) => sum + c.score, 10);
+  const setupQuality = Math.max(0, Math.min(100, Math.round(rawConfidence)));
   let decision: TradeDecision = 'wait';
-  if (setupType === 'failed-breakout' && confidence >= 55 && noTradeReasons.length === 0) decision = 'short-candidate';
-  else if (direction === 'short' && confidence >= 55 && noTradeReasons.length === 0) decision = 'short-candidate';
-  else if (direction === 'long' && confidence >= 55 && noTradeReasons.length === 0) decision = 'buy-candidate';
+  if (setupType === 'failed-breakout' && setupQuality >= 55 && noTradeReasons.length === 0) decision = 'short-candidate';
+  else if (direction === 'short' && setupQuality >= 55 && noTradeReasons.length === 0) decision = 'short-candidate';
+  else if (direction === 'long' && setupQuality >= 55 && noTradeReasons.length === 0) decision = 'buy-candidate';
   else if (noTradeReasons.length > 0) decision = setupType === 'failed-breakout' ? 'invalidated' : 'no-trade';
 
   const reason =
@@ -500,22 +551,50 @@ export function evaluateSignal(
 
   return {
     symbol,
+    timeframe: options.timeframe ?? '1d',
+    signalBarTime: current?.time ?? 0,
     setupType,
     decision,
     direction,
     regime,
-    confidence,
+    setupQuality,
     components,
     noTradeReasons,
     reason,
     risk,
-    analytics,
+    strategyVersion: SIGNAL_ENGINE_V2.strategyVersion,
+  };
+}
+
+export function evaluateSignal(
+  symbol: string,
+  candles: Candle[],
+  pivots: PivotPoint[],
+  settings: RiskSettings = DEFAULT_RISK_SETTINGS,
+): SignalEvaluation {
+  const core = evaluateSignalCore(symbol, candles, pivots, settings);
+  return {
+    symbol: core.symbol,
+    setupType: core.setupType,
+    decision: core.decision,
+    direction: core.direction,
+    regime: core.regime,
+    confidence: core.setupQuality,
+    components: core.components,
+    noTradeReasons: core.noTradeReasons,
+    reason: core.reason,
+    risk: core.risk,
+    analytics: analyticsFor(candles, pivots),
     backtest: runBacktest(candles, settings),
     strategyVersion: 'QuantDeskSignal_v1',
     evaluatedAt: new Date().toISOString(),
   };
 }
 
+/**
+ * @deprecated Legacy breakout backtest. Does not match setup-specific strategies or short directions.
+ * Replaced by Signal Engine V2 setup-specific historical replay in src/shared/signalValidation.ts.
+ */
 export function runBacktest(
   candles: Candle[],
   settings: RiskSettings = DEFAULT_RISK_SETTINGS,

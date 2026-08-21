@@ -115,9 +115,9 @@ function isForecastEvaluation(value: unknown): value is ForecastEvaluation {
     return false;
   }
   if (
-    evaluation.medianAbsolutePercentageError !== undefined &&
-    (!isFiniteNumber(evaluation.medianAbsolutePercentageError) ||
-      evaluation.medianAbsolutePercentageError < 0)
+    evaluation.meanAbsolutePercentageError !== undefined &&
+    (!isFiniteNumber(evaluation.meanAbsolutePercentageError) ||
+      evaluation.meanAbsolutePercentageError < 0)
   ) {
     return false;
   }
@@ -133,7 +133,7 @@ function isForecastEvaluation(value: unknown): value is ForecastEvaluation {
       evaluation.evaluatedAt === undefined &&
       evaluation.actualFinalClose === undefined &&
       evaluation.directionCorrect === undefined &&
-      evaluation.medianAbsolutePercentageError === undefined &&
+      evaluation.meanAbsolutePercentageError === undefined &&
       evaluation.p10P90Coverage === undefined
     );
   }
@@ -143,14 +143,14 @@ function isForecastEvaluation(value: unknown): value is ForecastEvaluation {
       isIsoTimestamp(evaluation.evaluatedAt) &&
       evaluation.actualFinalClose === undefined &&
       evaluation.directionCorrect === undefined &&
-      evaluation.medianAbsolutePercentageError === undefined &&
+      evaluation.meanAbsolutePercentageError === undefined &&
       evaluation.p10P90Coverage === undefined
     );
   }
   if (
     !isIsoTimestamp(evaluation.evaluatedAt) ||
     evaluation.actualPointsAvailable === 0 ||
-    !isFiniteNumber(evaluation.medianAbsolutePercentageError) ||
+    !isFiniteNumber(evaluation.meanAbsolutePercentageError) ||
     !isFrequency(evaluation.p10P90Coverage)
   ) {
     return false;

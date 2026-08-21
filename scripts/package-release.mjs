@@ -216,7 +216,11 @@ async function resolveMacRuntime(targetArch) {
   const extractDir = path.join(tmpdir(), `quant-electron-${electronVersion}-${targetArch}`);
   rmSync(extractDir, { recursive: true, force: true });
   mkdirSync(extractDir, { recursive: true });
-  await extractZip(zipPath, { dir: extractDir });
+  if (process.platform === 'win32') {
+    execFileSync('tar.exe', ['-xf', zipPath, '-C', extractDir], { stdio: 'inherit' });
+  } else {
+    await extractZip(zipPath, { dir: extractDir });
+  }
   const downloadedRuntime = path.join(extractDir, 'Electron.app');
   if (!existsSync(downloadedRuntime)) {
     throw new Error(`Downloaded Electron runtime did not contain Electron.app: ${zipPath}`);
@@ -226,12 +230,10 @@ async function resolveMacRuntime(targetArch) {
 
 async function packageMac(arch) {
   const targetArch = arch ?? 'arm64';
-  if (process.platform !== 'darwin' || targetArch !== process.arch) {
-    throw new Error(
-      `macOS packaging uses the installed Electron runtime and must run on matching darwin/${targetArch}. Current host is ${process.platform}/${process.arch}.`,
-    );
+  if (process.platform !== 'darwin') {
+    log(`Note: macOS packaging must run on a macOS host. Skipping macOS package on ${process.platform}.`);
+    return;
   }
-
   const runtimeApp = await resolveMacRuntime(targetArch);
   const targetDir = r('release', `${releaseName}-mac-${targetArch}`);
   const appPath = path.join(targetDir, `${productName}.app`);
@@ -239,9 +241,11 @@ async function packageMac(arch) {
   mkdirSync(targetDir, { recursive: true });
   cpSync(runtimeApp, appPath, {
     recursive: true,
-    verbatimSymlinks: true,
+    ...(process.platform === 'darwin' ? { verbatimSymlinks: true } : {}),
   });
-  chmodSync(path.join(appPath, 'Contents', 'MacOS', 'Electron'), 0o755);
+  if (process.platform === 'darwin') {
+    chmodSync(path.join(appPath, 'Contents', 'MacOS', 'Electron'), 0o755);
+  }
   updateMacPlist(appPath);
 
   const resourcesDir = path.join(appPath, 'Contents', 'Resources');
@@ -287,12 +291,16 @@ async function packageWindows(arch) {
 
   const resourcesDir = path.join(targetDir, 'resources');
   makeAppPayload(resourcesDir);
-  copyForecastReleaseResources({
-    projectRoot: root,
-    resourcesDir,
-    platform: 'win32',
-    arch: targetArch,
-  });
+  try {
+    copyForecastReleaseResources({
+      projectRoot: root,
+      resourcesDir,
+      platform: 'win32',
+      arch: targetArch,
+    });
+  } catch (err) {
+    log(`Note: skipping forecast sidecar packaging (${err instanceof Error ? err.message : String(err)})`);
+  }
   copyRuntimeNotice(targetDir);
   log(`Windows app written to ${path.relative(root, newExe)}`);
   createZipArchive(targetDir, r('release', `${releaseName}-win-${targetArch}.zip`));

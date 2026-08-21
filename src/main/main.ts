@@ -58,6 +58,7 @@ import { getQuotes } from './services/quotes';
 import { getValuation } from './services/valuation';
 import { sampleChart, sampleEarnings, sampleNews, sampleQuote } from './services/sample';
 import { cleanSignalScanRequest, scanSignals } from './services/signalScanner';
+import { getSignalDesk, unavailableSignalDesk } from './services/signalDesk';
 import { searchSymbols } from './services/symbols';
 import { clampInt, cleanSymbolList, normalizeSymbol, todayYmd } from './services/util';
 import {
@@ -288,6 +289,10 @@ function registerIpcHandlers(): void {
     if (!symbol) {
       return { etfSymbol: '', asOf: todayYmd(), holdings: [], source: 'sample' };
     }
+    // Futures / non-ETFs have no ETF holdings
+    if (symbol.includes('=') || symbol.endsWith('=F')) {
+      return { etfSymbol: symbol, asOf: todayYmd(), holdings: [], source: 'sample' };
+    }
     try {
       return await getHoldings(symbol);
     } catch {
@@ -434,6 +439,17 @@ function registerIpcHandlers(): void {
     } catch (err) {
       console.error('[signals] scan failed:', err);
       return scanSignals({ ...request, symbols: request.symbols?.slice(0, 20), limit: 20 });
+    }
+  });
+
+  ipcMain.handle(IPC.signalDeskGet, async (_e, rawSymbol: unknown) => {
+    const symbol = normalizeSymbol(rawSymbol);
+    if (!symbol) return unavailableSignalDesk('', 'Invalid symbol');
+    try {
+      return await getSignalDesk(symbol);
+    } catch (error) {
+      console.error('[signal-desk] failed:', error);
+      return unavailableSignalDesk(symbol, 'Signal Desk could not load.');
     }
   });
 
@@ -620,6 +636,7 @@ function createWindow(): void {
     backgroundColor: '#0a0e16',
     autoHideMenuBar: true,
     title: 'Quant',
+    icon: path.join(__dirname, 'assets/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

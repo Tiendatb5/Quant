@@ -8,6 +8,12 @@ import type {
   ValuationSnapshot,
 } from '../../../shared/types';
 import type { SignalEvaluation } from '../../../shared/quant';
+import type {
+  HistoricalValidationSummary,
+  ForwardRecordSummary,
+  SignalCoreEvaluation,
+  SignalDeskResult,
+} from '../../../shared/signalV2';
 import { api } from '../../api';
 
 function label(value: string): string {
@@ -25,47 +31,87 @@ function fmtMoney(value: number | null | undefined): string {
 }
 
 export function QuantDecisionPanel({
-  evaluation,
+  signalDesk,
+  loading = false,
+  evaluation: fallbackEvaluation,
   earnings,
   valuation,
   range,
   chartSource,
   chartAsOf,
 }: {
-  evaluation: SignalEvaluation | null;
+  signalDesk?: SignalDeskResult | null;
+  loading?: boolean;
+  evaluation?: SignalEvaluation | null;
   earnings: EarningsEvent | null;
   valuation: ValuationSnapshot | null;
   range: ChartRange;
   chartSource?: DataSource;
   chartAsOf?: string;
 }) {
-  if (!evaluation) {
+  if (loading && !signalDesk) {
     return (
       <aside className="cm-quant" aria-label="Quant signal">
         <div className="cm-quant-head">
-          <h3>Signal Desk</h3>
-          <p>Waiting for candles.</p>
+          <div>
+            <h3>Signal Desk</h3>
+            <p>Evaluating 1D price structure…</p>
+          </div>
         </div>
       </aside>
     );
   }
+
+  const evaluation: SignalCoreEvaluation | SignalEvaluation | null =
+    signalDesk?.evaluation ?? fallbackEvaluation ?? null;
+  const historical: HistoricalValidationSummary | null = signalDesk?.historical ?? null;
+  const forward: ForwardRecordSummary | null = signalDesk?.forward ?? null;
+
+  if (!evaluation || (signalDesk && signalDesk.status === 'unavailable' && !signalDesk.evaluation)) {
+    return (
+      <aside className="cm-quant" aria-label="Quant signal">
+        <div className="cm-quant-head">
+          <div>
+            <h3>Signal Desk</h3>
+            <p>1D daily validation unavailable</p>
+          </div>
+          <span className="cm-decision no-trade">UNAVAILABLE</span>
+        </div>
+        <p className="cm-signal-reason">
+          {signalDesk?.warnings?.[0] ?? 'Live 5-year daily history is required for validated Signal Desk output.'}
+        </p>
+      </aside>
+    );
+  }
+
+  const setupQuality =
+    'setupQuality' in evaluation ? evaluation.setupQuality : evaluation.confidence;
+
+  const asOfText = signalDesk?.asOf
+    ? new Date(signalDesk.asOf).toLocaleDateString()
+    : chartAsOf
+      ? new Date(chartAsOf).toLocaleDateString()
+      : undefined;
 
   return (
     <aside className="cm-quant" aria-label="Quant signal">
       <div className="cm-quant-head">
         <div>
           <h3>Signal Desk</h3>
-          <p>{evaluation.strategyVersion}</p>
+          <p>
+            {evaluation.strategyVersion} · 1D
+            {asOfText ? ` · As of ${asOfText}` : ''}
+          </p>
         </div>
         <span className={`cm-decision ${evaluation.decision}`}>{label(evaluation.decision)}</span>
       </div>
 
       <div
         className="cm-score-row"
-        title="Signal score is an explainable 0-100 quality score. Higher means more explicit rule evidence supports the trade setup. It is not a probability of profit. Penalties come from blockers such as weak volume, poor reward/risk, choppy regime, or price too close to support/resistance."
+        title="Setup quality is a deterministic 0–100 rule score. It is not a probability of profit. Historical and forward outcomes are reported separately. Penalties come from blockers such as weak volume, poor reward/risk, choppy regime, or price too close to support/resistance."
       >
         <div>
-          <span className="cm-score num">{evaluation.confidence}</span>
+          <span className="cm-score num">{setupQuality}</span>
           <span className="cm-score-max">/100</span>
         </div>
         <div className="cm-score-meta">
@@ -108,29 +154,122 @@ export function QuantDecisionPanel({
         ))}
       </div>
 
-      <div className="cm-analytics">
-        <span>Analytics</span>
-        <div>
-          <b>ATR</b><em className="num">{evaluation.analytics.atr14 ?? 'n/a'}</em>
-          <b>Vol</b><em className="num">{evaluation.analytics.volumeRatio ?? 'n/a'}x</em>
-          <b>BT win</b><em className="num">{evaluation.backtest.winRate}%</em>
-          <b>Exp</b><em className="num">{evaluation.backtest.expectancy}R</em>
+      <div className="cm-historical-replay">
+        <div className="cm-section-head">
+          <span>Historical Replay</span>
+          {historical?.status === 'ready' && <em>{historical.eligibleTrades} eligible trades</em>}
         </div>
+        {historical?.status === 'ready' ? (
+          <div className="cm-historical-grid">
+            <div><span>Positive trades</span><b className="num">{historical.winRatePercent}%</b></div>
+            <div><span>Target hit rate</span><b className="num">{historical.targetHitRatePercent}%</b></div>
+            <div><span>Expectancy</span><b className="num">{historical.expectancyR >= 0 ? '+' : ''}{historical.expectancyR}R</b></div>
+            <div><span>Profit factor</span><b className="num">{historical.profitFactor}</b></div>
+            <div><span>Max drawdown</span><b className="num">{historical.maxDrawdownR}R</b></div>
+            <div><span>Sample quality</span><b className="num">{historical.evidenceStrength}</b></div>
+            {historical.expectancyCi95 && (
+              <div className="cm-span-2">
+                <span>95% expectancy CI</span>
+                <b className="num">
+                  {historical.expectancyCi95.lower >= 0 ? '+' : ''}{historical.expectancyCi95.lower}R → {historical.expectancyCi95.upper >= 0 ? '+' : ''}{historical.expectancyCi95.upper}R
+                </b>
+              </div>
+            )}
+            {historical.regimeMatched && (
+              <div className="cm-span-2 cm-regime-match">
+                <span>Regime match ({label(historical.regimeMatched.regime)})</span>
+                <b className="num">
+                  {historical.regimeMatched.trades} trades · {historical.regimeMatched.winRatePercent}% win · {historical.regimeMatched.expectancyR >= 0 ? '+' : ''}{historical.regimeMatched.expectancyR}R
+                </b>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="cm-replay-unavailable">
+            {historical?.unavailableReason ?? 'Historical replay unavailable for this setup.'}
+          </p>
+        )}
+      </div>
+
+      <div className="cm-forward-record">
+        <div className="cm-section-head">
+          <span>Forward Record</span>
+          {forward && forward.resolvedSignals > 0 && <em>{forward.resolvedSignals} resolved</em>}
+        </div>
+        {forward && forward.resolvedSignals > 0 ? (
+          <div className="cm-forward-grid">
+            <div><span>Positive trades</span><b className="num">{forward.winRatePercent ?? 'n/a'}%</b></div>
+            <div><span>Expectancy</span><b className="num">{forward.expectancyR !== null ? `${forward.expectancyR >= 0 ? '+' : ''}${forward.expectancyR}R` : 'n/a'}</b></div>
+            <div><span>Profit factor</span><b className="num">{forward.profitFactor ?? 'n/a'}</b></div>
+            <div><span>Active signals</span><b className="num">{forward.activeSignals}</b></div>
+            {forward.expectancyCi95 && (
+              <div className="cm-span-2">
+                <span>95% expectancy CI</span>
+                <b className="num">
+                  {forward.expectancyCi95.lower >= 0 ? '+' : ''}{forward.expectancyCi95.lower}R → {forward.expectancyCi95.upper >= 0 ? '+' : ''}{forward.expectancyCi95.upper}R
+                </b>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="cm-forward-building">
+            Forward record is building. Only signals observed after this version was installed count here.
+          </p>
+        )}
       </div>
 
       <div className="cm-evidence-desk">
         <div className="cm-evidence-head">
           <span>Evidence-backed snapshot</span>
-          <em>{chartAsOf ? `as of ${new Date(chartAsOf).toLocaleDateString()}` : 'as-of unavailable'}</em>
+          <em>{asOfText ? `as of ${asOfText}` : 'as-of unavailable'}</em>
         </div>
-        <div><b>E1</b><span>Signal rules</span><em>{evaluation.strategyVersion}</em><i className="verified">verified</i></div>
-        <div><b>E2</b><span>Chart candles</span><em>{chartSource ?? 'unknown'}</em><i className={chartSource === 'live' ? 'verified' : 'warning'}>{chartSource ?? 'unknown'}</i></div>
-        <div><b>E3</b><span>Backtest sample</span><em>{evaluation.backtest.totalTrades} trades</em><i className={evaluation.backtest.totalTrades >= 20 ? 'verified' : 'warning'}>{evaluation.backtest.totalTrades >= 20 ? 'usable' : 'thin'}</i></div>
-        <div><b>E4</b><span>Earnings</span><em>{earnings?.date ?? 'unavailable'}</em><i className={earnings?.source === 'live' ? 'verified' : 'warning'}>{earnings?.source ?? 'missing'}</i></div>
-        <div><b>E5</b><span>Valuation</span><em>{valuation?.companyName ?? 'unavailable'}</em><i className={valuation?.source === 'live' ? 'verified' : 'warning'}>{valuation?.source ?? 'missing'}</i></div>
+        <div>
+          <b>E1</b>
+          <span>Signal rules</span>
+          <em>{evaluation.strategyVersion}</em>
+          <i className="verified">verified</i>
+        </div>
+        <div>
+          <b>E2</b>
+          <span>Daily candles</span>
+          <em>1D {signalDesk?.source ?? chartSource ?? 'unknown'}</em>
+          <i className={(signalDesk?.source ?? chartSource) === 'live' ? 'verified' : 'warning'}>
+            {signalDesk?.source ?? chartSource ?? 'unknown'}
+          </i>
+        </div>
+        <div>
+          <b>E3</b>
+          <span>Historical replay</span>
+          <em>{historical?.eligibleTrades ?? 0} trades</em>
+          <i className={historical?.status === 'ready' && historical.eligibleTrades >= 15 ? 'verified' : 'warning'}>
+            {historical?.evidenceStrength ?? 'unavailable'}
+          </i>
+        </div>
+        <div>
+          <b>E4</b>
+          <span>Forward record</span>
+          <em>{forward?.resolvedSignals ?? 0} resolved</em>
+          <i className={(forward?.resolvedSignals ?? 0) >= 10 ? 'verified' : 'warning'}>
+            {(forward?.resolvedSignals ?? 0) >= 10 ? 'usable' : 'building'}
+          </i>
+        </div>
+        <div>
+          <b>E5</b>
+          <span>Valuation & Earnings</span>
+          <em>{valuation?.companyName ?? earnings?.companyName ?? 'unavailable'}</em>
+          <i className={valuation?.source === 'live' || earnings?.source === 'live' ? 'verified' : 'warning'}>
+            {valuation?.source ?? earnings?.source ?? 'missing'}
+          </i>
+        </div>
       </div>
 
-      <DecisionJournal evaluation={evaluation} range={range} />
+      <DecisionJournal
+        symbol={evaluation.symbol}
+        evaluation={evaluation}
+        range={range}
+        historical={historical}
+        forward={forward}
+      />
 
       {valuation && (
         <div className="cm-valuation">
@@ -186,12 +325,23 @@ export function QuantDecisionPanel({
           </em>
         </div>
       )}
-
     </aside>
   );
 }
 
-function DecisionJournal({ evaluation, range }: { evaluation: SignalEvaluation; range: ChartRange }) {
+function DecisionJournal({
+  symbol,
+  evaluation,
+  range,
+  historical,
+  forward,
+}: {
+  symbol: string;
+  evaluation: SignalCoreEvaluation | SignalEvaluation;
+  range: ChartRange;
+  historical: HistoricalValidationSummary | null;
+  forward: ForwardRecordSummary | null;
+}) {
   const [entries, setEntries] = useState<QuantJournalEntry[]>([]);
   const [status, setStatus] = useState<QuantJournalStatus>('planned');
   const [thesis, setThesis] = useState('');
@@ -203,7 +353,7 @@ function DecisionJournal({ evaluation, range }: { evaluation: SignalEvaluation; 
 
   useEffect(() => {
     let cancelled = false;
-    api.getQuantJournal(evaluation.symbol).then(
+    api.getQuantJournal(symbol).then(
       (result) => {
         if (!cancelled) setEntries(result);
       },
@@ -214,7 +364,7 @@ function DecisionJournal({ evaluation, range }: { evaluation: SignalEvaluation; 
     return () => {
       cancelled = true;
     };
-  }, [evaluation.symbol]);
+  }, [symbol]);
 
   useEffect(() => {
     setThesis((value) => value || evaluation.reason);
@@ -224,7 +374,7 @@ function DecisionJournal({ evaluation, range }: { evaluation: SignalEvaluation; 
         evaluation.noTradeReasons[0] ||
         `Invalidate if price closes through the ${evaluation.risk.stop} stop or the setup structure fails.`,
     );
-  }, [evaluation.evaluatedAt, evaluation.noTradeReasons, evaluation.reason, evaluation.risk.stop]);
+  }, [evaluation.noTradeReasons, evaluation.reason, evaluation.risk.stop]);
 
   const save = async () => {
     if (!thesis.trim() || !invalidation.trim() || busy) return;
@@ -232,14 +382,59 @@ function DecisionJournal({ evaluation, range }: { evaluation: SignalEvaluation; 
     setMessage('');
     try {
       const entry = await api.saveQuantJournal({
-        symbol: evaluation.symbol,
+        symbol,
         range,
         status,
         thesis,
         catalyst,
         invalidation,
         notes,
-        evaluation,
+        evaluation: {
+          symbol: evaluation.symbol,
+          setupType: evaluation.setupType,
+          decision: evaluation.decision,
+          direction: evaluation.direction,
+          regime: evaluation.regime,
+          confidence: 'setupQuality' in evaluation ? evaluation.setupQuality : evaluation.confidence,
+          components: evaluation.components,
+          noTradeReasons: evaluation.noTradeReasons,
+          reason: evaluation.reason,
+          risk: evaluation.risk,
+          analytics: 'analytics' in evaluation ? evaluation.analytics : {
+            lastClose: evaluation.risk.entry,
+            changePercent: 0,
+            sma20: null,
+            sma50: null,
+            atr14: null,
+            atrPercent: null,
+            avgVolume20: null,
+            volumeRatio: null,
+            support: null,
+            resistance: null,
+            distanceToSupportPercent: null,
+            distanceToResistancePercent: null,
+          },
+          backtest: 'backtest' in evaluation ? evaluation.backtest : {
+            strategyName: 'QuantDeskSignal_v2',
+            strategyVersion: evaluation.strategyVersion,
+            totalTrades: historical?.eligibleTrades ?? 0,
+            winRate: historical?.winRatePercent ?? 0,
+            averageWin: historical?.averageWinR ?? 0,
+            averageLoss: historical?.averageLossR ?? 0,
+            profitFactor: historical?.profitFactor ?? 0,
+            expectancy: historical?.expectancyR ?? 0,
+            maxDrawdown: historical?.maxDrawdownR ?? 0,
+            averageR: historical?.expectancyR ?? 0,
+            bestTradeR: historical?.bestTradeR ?? 0,
+            worstTradeR: historical?.worstTradeR ?? 0,
+            consecutiveWins: 0,
+            consecutiveLosses: 0,
+          },
+          strategyVersion: evaluation.strategyVersion,
+          evaluatedAt: 'evaluatedAt' in evaluation ? evaluation.evaluatedAt : new Date().toISOString(),
+        },
+        historicalValidation: historical,
+        forwardRecord: forward,
       });
       setEntries((items) => [entry, ...items].slice(0, 30));
       setMessage('Decision snapshot saved locally.');

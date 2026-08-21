@@ -122,7 +122,7 @@ export function evaluateForecast(
 
   const finalClose = actualByTimestamp.get(record.forecastEndAt);
   const matured = finalClose !== undefined;
-  const medianAbsolutePercentageError =
+  const meanAbsolutePercentageError =
     matched.reduce(
       (total, point) =>
         total +
@@ -142,7 +142,7 @@ export function evaluateForecast(
     evaluatedAt,
     actualPointsAvailable: matched.length,
     expectedPoints: FORECAST_V1.predictionBars,
-    medianAbsolutePercentageError,
+    meanAbsolutePercentageError,
     p10P90Coverage,
   };
   if (matured) {

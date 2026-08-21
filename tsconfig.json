@@ -13,5 +13,5 @@
     "noEmit": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
-  "include": ["src", "next-env.d.ts", "**/*.ts", "**/*.tsx", "custom.d.ts"]
+  "include": ["src", "next-env.d.ts", "**/*.ts", "**/*.tsx", "custom.d.ts", "src/types/**/*.d.ts"]
 }

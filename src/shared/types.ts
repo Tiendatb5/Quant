@@ -4,6 +4,8 @@
 // updates to src/main/preload.ts, the IPC handlers in src/main, and
 // every renderer caller.
 
+import type { SetupType, TradeDecision } from './quant';
+
 export type InstrumentType = 'etf' | 'stock' | 'index' | 'future';
 
 /** Where a payload came from. 'sample' means bundled/offline fallback data —
@@ -98,6 +100,8 @@ export interface ChartData {
 }
 
 export type SignalKind =
+  | 'buy-candidate'
+  | 'short-candidate'
   | 'cup-forming'
   | 'cup-handle'
   | 'ma-alignment'
@@ -143,6 +147,9 @@ export interface SignalScanRow {
   signals: DetectedSignal[];
   sparkline: number[];
   source: DataSource;
+  decision?: TradeDecision;
+  setupType?: SetupType;
+  setupQuality?: number;
 }
 
 export interface SignalScanSummary {
@@ -151,6 +158,8 @@ export interface SignalScanSummary {
   nearHighCount: number;
   cupCount: number;
   maAlignedCount: number;
+  buyCandidateCount?: number;
+  shortCandidateCount?: number;
   source: DataSource;
 }
 
@@ -203,6 +212,8 @@ export interface QuantInsightRequest {
   symbol: string;
   range: ChartRange;
   evaluation: import('./quant').SignalEvaluation;
+  signalValidation?: import('./signalV2').HistoricalValidationSummary | null;
+  forwardSignalRecord?: import('./signalV2').ForwardRecordSummary | null;
   news: NewsItem[];
   earnings?: EarningsEvent | null;
   valuation?: ValuationSnapshot | null;
@@ -273,6 +284,8 @@ export interface QuantJournalEntryInput {
   invalidation: string;
   notes?: string;
   evaluation: import('./quant').SignalEvaluation;
+  historicalValidation?: import('./signalV2').HistoricalValidationSummary | null;
+  forwardRecord?: import('./signalV2').ForwardRecordSummary | null;
 }
 
 export interface QuantJournalEntry {
@@ -298,6 +311,16 @@ export interface QuantJournalEntry {
     target2: number;
     rewardRisk1: number;
     blockers: string[];
+    historical?: {
+      trades: number;
+      expectancyR: number;
+      profitFactor: number;
+      evidenceStrength: import('./signalV2').SignalEvidenceStrength;
+    };
+    forward?: {
+      resolvedSignals: number;
+      expectancyR: number | null;
+    };
   };
 }
 
@@ -388,5 +411,6 @@ export interface QuantApi {
   testLlmConnection(settings: LlmSettingsInput): Promise<LlmConnectionResult>;
   getValuation(symbol: string): Promise<ValuationSnapshot>;
   scanSignals(request?: SignalScanRequest): Promise<SignalScanResult>;
+  getSignalDesk(symbol: string): Promise<import('./signalV2').SignalDeskResult>;
   openExternal(url: string): Promise<void>;
 }
