@@ -5,6 +5,8 @@ import { NewsFeed } from './NewsFeed';
 import { SignalBoard } from './SignalBoard';
 import { SettingsPanel } from './SettingsPanel';
 import { MarketLeaders } from './MarketLeaders';
+import { EconomicCalendarTab } from './EconomicCalendarTab';
+
 import '../styles/analysis.css';
 import '../styles/signals.css';
 
@@ -61,6 +63,23 @@ export function CenterTabs() {
         <button
           type="button"
           role="tab"
+          aria-selected={
+            state.centerTab === 'economic'
+          }
+          className={
+            state.centerTab === 'economic'
+              ? 'ct-tab is-active'
+              : 'ct-tab'
+          }
+          onClick={() =>
+            actions.setCenterTab('economic')
+          }
+        >
+          Economic Calendar
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={state.centerTab === 'settings'}
           className={state.centerTab === 'settings' ? 'ct-tab is-active' : 'ct-tab'}
           onClick={() => actions.setCenterTab('settings')}
@@ -75,6 +94,7 @@ export function CenterTabs() {
           {state.centerTab === 'analysis' && <AnalysisLab />}
           {state.centerTab === 'signals' && <SignalBoard />}
           {state.centerTab === 'MarketLeaders' && <MarketLeaders />}
+          {state.centerTab === 'economic' && <EconomicCalendarTab />}
           {state.centerTab === 'settings' && <SettingsPanel />}
         </div>
       </div>

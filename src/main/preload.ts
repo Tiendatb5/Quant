@@ -33,6 +33,8 @@ import type {
   SymbolSuggestion,
   ValuationSnapshot,
   WatchlistItem,
+  EconomicCalendarRequest,
+  EconomicEvent,
 } from '../shared/types';
 
 type ForecastEventChannel =
@@ -87,6 +89,8 @@ const api: QuantApi = {
     ipcRenderer.invoke(IPC.newsGet, symbols, limitPerSymbol),
   getEarnings: (symbols: string[]): Promise<EarningsEvent[]> =>
     ipcRenderer.invoke(IPC.earningsGet, symbols),
+  getEconomicCalendar: (request?: EconomicCalendarRequest): Promise<EconomicEvent[]> =>
+    ipcRenderer.invoke(IPC.economicCalendarGet, request),
   getChart: (symbol: string, range: ChartRange): Promise<ChartData> =>
     ipcRenderer.invoke(IPC.chartGet, symbol, range),
   getPivotNews: (symbol: string, pivots: PivotPoint[]): Promise<PivotNewsResult[]> =>

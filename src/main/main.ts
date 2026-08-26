@@ -7,7 +7,8 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
-
+import { fetchTradingViewCalendar } from './services/economicCalendar/tradingViewProvider';
+import type { EconomicCalendarRequest, EconomicEvent } from '../shared/types';
 // Set a separate user data path when running unpackaged (dev mode)
 if (!app.isPackaged) {
   app.setPath('userData', `${app.getPath('userData')}-dev`);
@@ -239,6 +240,66 @@ function registerIpcHandlers(): void {
       return [];
     }
   });
+
+  //Economic Calender code part
+  ipcMain.handle(IPC.economicCalendarGet,    async (_e, rawRequest: unknown): Promise<EconomicEvent[]> => {
+      try {
+        const req =
+          rawRequest && typeof rawRequest === 'object'
+            ? (rawRequest as EconomicCalendarRequest)
+            : {};
+
+        const countries = Array.isArray(req.countries)
+          ? req.countries.map((c) => String(c).toUpperCase()).filter(Boolean)
+          : req.country
+            ? [String(req.country).toUpperCase()]
+            : ['US'];
+
+        const countryParam =
+          countries.includes('ALL') || countries.length === 0
+            ? 'US,CA,GB,EU,DE,FR,IT,JP,CN,AU,NZ,CH,IN,KR'
+            : countries.join(',');
+
+        const impacts = Array.isArray(req.impacts)
+          ? req.impacts
+          : req.impact && req.impact !== 'all'
+            ? [req.impact]
+            : (['high', 'medium', 'low'] as const);
+
+        let minImportance = 0;
+        if (!impacts.includes('low') && impacts.includes('medium')) minImportance = 1;
+        if (impacts.length === 1 && impacts[0] === 'high') minImportance = 2;
+
+        const now = new Date();
+        const start = new Date(
+          Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+        );
+        let from = start;
+        let to = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+
+        if (req.date === 'tomorrow') {
+          from = to;
+          to = new Date(from.getTime() + 24 * 60 * 60 * 1000);
+        } else if (req.date === 'week') {
+          to = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
+        }
+
+        const events = await fetchTradingViewCalendar({
+          from,
+          to,
+          country: countryParam,
+          minImportance,
+        });
+
+        // Fine-filter when user picked a subset (e.g. only high+low)
+        const allow = new Set(impacts);
+        return events.filter((ev) => allow.has(ev.impact as 'high' | 'medium' | 'low'));
+      } catch (err) {
+        console.error('[economic-calendar]', err);
+        return [];
+      }
+    },
+  );
 
   ipcMain.handle(IPC.watchlistAdd, async (_e, rawSymbol: unknown): Promise<AddWatchlistResult> => {
     try {
@@ -660,7 +721,7 @@ function createWindow(): void {
   if (smokeModalSymbol) query.smokeModal = smokeModalSymbol;
   if (smokeRail) query.smokeRail = smokeRail;
   if (smokeOverlays) query.smokeOverlays = smokeOverlays;
-  if (smokeTab === 'pulse' || smokeTab === 'analysis' || smokeTab === 'news' || smokeTab === 'signals' || smokeTab === 'settings') query.smokeTab = smokeTab;
+  if (smokeTab === 'pulse' || smokeTab === 'analysis' || smokeTab === 'news' || smokeTab === 'signals' || smokeTab === 'economic' || smokeTab === 'settings') query.smokeTab = smokeTab;
   if (smokeChartMode === 'grid' || smokeChartMode === 'single') {
     query.smokeChartMode = smokeChartMode;
   }
@@ -740,3 +801,4 @@ if (!gotLock) {
     app.quit();
   });
 }
+

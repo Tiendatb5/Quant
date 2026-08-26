@@ -413,4 +413,39 @@ export interface QuantApi {
   scanSignals(request?: SignalScanRequest): Promise<SignalScanResult>;
   getSignalDesk(symbol: string): Promise<import('./signalV2').SignalDeskResult>;
   openExternal(url: string): Promise<void>;
+  getEconomicCalendar(request?: EconomicCalendarRequest): Promise<EconomicEvent[]>;
+}
+
+// ---------------------------------------------------------------------------
+// Economic calendar (TradingView)
+// ---------------------------------------------------------------------------
+export type EconomicImpact = 'high' | 'medium' | 'low' | 'none';
+export type EconomicCalendarDateFilter = 'today' | 'tomorrow' | 'week';
+export type EconomicCalendarImpactFilter = 'all' | 'high' | 'medium' | 'low';
+export type EconomicCalendarCountry =
+  | 'US' | 'CA' | 'GB' | 'EU' | 'DE' | 'FR' | 'IT'
+  | 'JP' | 'CN' | 'AU' | 'NZ' | 'CH' | 'IN' | 'KR' | 'ALL';
+
+export interface EconomicEvent {
+  id: string;
+  eventTime: string;
+  time: string;
+  currency: string;
+  country: string;
+  countryCode: string;
+  impact: EconomicImpact;
+  impactLevel: number;
+  event: string;
+  actual: string;
+  forecast: string;
+  previous: string;
+  source: 'tradingview';
+}
+
+export interface EconomicCalendarRequest {
+  countries?: string[];
+  country?: string;
+  date?: EconomicCalendarDateFilter;
+  impacts?: Array<'high' | 'medium' | 'low'>;
+  impact?: 'all' | 'high' | 'medium' | 'low';
 }

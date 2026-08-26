@@ -11,6 +11,7 @@ export const IPC = {
   holdingsGet: 'holdings:get',
   newsGet: 'news:get',
   earningsGet: 'earnings:get',
+  economicCalendarGet: 'economic-calendar:get',  // ← add
   chartGet: 'chart:get',
   pivotNewsGet: 'chart:pivot-news',
   macroOverlayGet: 'chart:macro-overlay',
