@@ -1,0 +1,384 @@
+/* TradingView-style treemap heatmap + rotation bar */
+
+.hm-panel {
+  display: grid;
+  grid-template-rows:
+    auto    /* Header */
+    auto    /* Leader/Laggard */
+    42px    /* Ranking bar - fixed height */
+    minmax(0, 1fr); /* Treemap */
+  height: 100%;
+  min-height: 0;
+  background: #0d0d0d;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.hm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #222;
+  background: #111;
+  flex-wrap: wrap;
+}
+
+.hm-title-block h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #e8e8e8;
+}
+
+.hm-title-block p {
+  margin: 2px 0 0;
+  font-size: 10px;
+  color: #888;
+}
+
+.hm-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.hm-updated {
+  font-size: 10px;
+  color: #666;
+  white-space: nowrap;
+}
+
+/* Reuse Market Leaders segment style if global; local fallback: */
+.hm-controls .mc-segment {
+  display: inline-flex;
+  border: 1px solid #333;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1a1a1a;
+}
+
+.hm-controls .mc-segment button {
+  border: none;
+  background: transparent;
+  color: #999;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.hm-controls .mc-segment button:hover {
+  color: #ddd;
+  background: #252525;
+}
+
+.hm-controls .mc-segment button.is-active {
+  background: #2a2a2a;
+  color: #fff;
+}
+
+.hm-controls .cp-refresh {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #1a1a1a;
+  color: #aaa;
+  cursor: pointer;
+}
+
+.hm-controls .cp-refresh:hover:not(:disabled) {
+  background: #252525;
+  color: #fff;
+}
+
+.hm-controls .cp-refresh:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.hm-controls .cp-refresh .is-spinning {
+  animation: hm-spin 0.8s linear infinite;
+}
+
+@keyframes hm-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Sector rotation bar ────────────────────────────────────────────────── */
+.hm-rotation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 14px;        /* was 7 larger */
+  border-bottom: 1px solid #1e1e1e;
+  background: #0f0f0f;
+  flex-wrap: wrap;
+  min-height: 0;
+  margin: 0;
+}
+
+.hm-rot-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.hm-rot-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-right: 2px;
+}
+
+.hm-rot-label.leaders {
+  color: #22c55e;
+}
+
+.hm-rot-label.laggards {
+  color: #ef4444;
+}
+
+.hm-rot-empty {
+  font-size: 10px;
+  color: #555;
+}
+
+.hm-rot-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  background: #1a1a1a;
+}
+
+.hm-rot-chip.up {
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.25);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.hm-rot-chip.down {
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.hm-rot-chip:hover {
+  filter: brightness(1.2);
+}
+
+.hm-rot-sym {
+  font-weight: 700;
+}
+
+.hm-rot-rs {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+}
+
+.hm-rot-spy {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #aaa;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hm-loading-bar {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  padding: 4px 12px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #aaa;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+/* ── Treemap body ───────────────────────────────────────────────────────── */
+.hm-body {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  background: #0d0d0d;
+  /* add: */
+  margin: 8px;
+  border: 1px solid #333;
+  border-radius: 6px;
+}
+
+.hm-treemap {
+position: relative;
+
+/* optional inset so sector frames don't touch the outer border */
+/* padding is handled by PAD in squarify already */
+}
+
+.hm-sector-frame {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px solid #3b82f6;   /* TradingView-like blue */
+  border-radius: 2px;
+  pointer-events: none;         /* clicks go to cells */
+  z-index: 1;
+}
+
+.hm-sector-name {
+  position: absolute;
+  top: 3px;
+  left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #93c5fd;               /* light blue text */
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+  pointer-events: none;
+}
+
+.hm-cell {
+    z-index: 2;                   /* cells above the frame */
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  border-radius: 1px;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: #f0f0f0;
+  overflow: hidden;
+  transition: filter 0.12s ease, outline 0.12s ease;
+  box-sizing: border-box;
+}
+
+.hm-cell:hover {
+  filter: brightness(1.25);
+  outline: 1px solid rgba(255, 255, 255, 0.35);
+  z-index: 2;
+}
+
+.hm-sym {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+}
+
+.hm-pct {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.92;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.hm-loading,
+.hm-empty {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  height: 100%;
+  color: #888;
+  text-align: center;
+}
+
+.hm-empty strong {
+  color: #ccc;
+  font-size: 13px;
+}
+
+.hm-empty button {
+  margin-top: 6px;
+  padding: 4px 12px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: #1a1a1a;
+  color: #aaa;
+  cursor: pointer;
+}
+
+/*  css for sector ratation ranking bar */
+.hm-rs-spectrum {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 5px 5px;   /* was larger — less vertical padding */
+  margin: 0;
+  border-bottom: 1px solid #1e1e1e;
+  background: #0f0f0f;
+  justify-content: center; /* center the half-width track */
+}
+
+.hm-rs-track {
+  position: relative;
+  flex: none;              /* don’t stretch full width */
+  width: 50%;              /* half of current length */
+  max-width: 500px;        /* do dai cua ranking bar */
+  height: 7px;             /* thinner bar (was ~8px) */
+  border-radius: 3px;
+  background: linear-gradient(to right, #15803d, #3f3f46, #b91c1c);     /* green → gray → red */
+}
+
+.hm-rs-tick {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;              /* thinner tick */
+  height: 11px;            /* shorter tick */
+  padding: 0;
+  border: none;
+  border-radius: 1px;
+  background: #fff;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.hm-rs-tick-label {
+  position: absolute;
+  top: 11px;               /* closer under the track */
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;          /* smaller labels */
+  font-weight: 700;
+  color: #aaa;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.hm-rs-end {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex: none;
+}
+
+.hm-rs-tick:hover {
+  background: #93c5fd;
+}
+.hm-rs-tick:hover .hm-rs-tick-label {
+  color: #93c5fd;
+}

@@ -146,6 +146,44 @@ function ImpactBadge({ impact }: { impact: EconomicEvent['impact'] }) {
   );
 }
 
+// ---------- helpers for value colouring ----------
+function parseNumeric(value: string | null): number | null {
+  if (!value || value === '-' || value === '—' || value === '--') return null;
+  // strip %, K, M, B, commas, etc.
+  const cleaned = value.replace(/[,%KMB]/gi, '').trim();
+  const n = parseFloat(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Simple beat/miss colour: green if actual > forecast, red if actual < forecast.
+ *  (Most economic indicators are “higher is better”; for rates/unemployment you
+ *   may want to invert later – this is a good default.) */
+function getValueTone(
+  actual: string | null,
+  forecast: string | null,
+): 'up' | 'down' | 'neutral' {
+  const a = parseNumeric(actual);
+  const f = parseNumeric(forecast);
+  if (a === null || f === null) return 'neutral';
+  if (a > f) return 'up';
+  if (a < f) return 'down';
+  return 'neutral';
+}
+
+function ImpactStars({ impact }: { impact: EconomicEvent['impact'] }) {
+  const level =
+    impact === 'high' ? 3 : impact === 'medium' ? 2 : impact === 'low' ? 1 : 0;
+  return (
+    <span className={`econ-stars econ-stars-${impact}`}>
+      {Array.from({ length: 3 }).map((_, i) => (
+        <span key={i} className={i < level ? 'filled' : 'empty'}>
+          ★
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function EventRow({
   event,
   index,
@@ -157,59 +195,75 @@ function EventRow({
 }) {
   const minutes = getMinutesUntil(event.eventTime, now);
   const isPast = minutes < 0;
+  const tone = getValueTone(event.actual, event.forecast);
 
   return (
     <li
       className={`econ-event-row ${isPast ? 'is-past' : ''}`}
       style={{ '--motion-index': index } as React.CSSProperties}
     >
-      <div className="econ-event-main">
-        <div className="econ-event-time-col">
-          <div className="econ-event-time num">{formatTime(event.eventTime)}</div>
-          <div className={`econ-countdown ${isPast ? 'is-past' : minutes <= 15 ? 'is-soon' : ''}`}>
-            {formatCountdown(minutes)}
-          </div>
+      {/* Time */}
+      <div className="econ-col-time">
+        <div className="econ-event-time num">{formatTime(event.eventTime)}</div>
+        <div
+          className={`econ-countdown ${
+            isPast ? 'is-past' : minutes <= 15 ? 'is-soon' : ''
+          }`}
+        >
+          {formatCountdown(minutes)}
         </div>
-
-        <div className="econ-country">
-          {getCountryFlagSrc(event.countryCode) ? (
-            <img
-              className="econ-flag-img"
-              src={getCountryFlagSrc(event.countryCode)}
-              alt={event.countryCode}
-              width={16}
-              height={12}
-            />
-          ) : (
-            <span className="econ-flag-fallback">{event.countryCode}</span>
-          )}
-          <span className="econ-country-code" title={event.country}>
-            {event.countryCode}
-          </span>
-        </div>
-
-        <div className="econ-event-name">
-          <div className="econ-event-title" title={event.event}>
-            {event.event}
-          </div>
-          <div className="econ-event-values">
-            <span>
-              Actual <b className="num">{displayValue(event.actual)}</b>
-            </span>
-            <span>
-              Forecast <b className="num">{displayValue(event.forecast)}</b>
-            </span>
-            <span>
-              Previous <b className="num">{displayValue(event.previous)}</b>
-            </span>
-          </div>
-        </div>
-
-        <ImpactBadge impact={event.impact} />
       </div>
+
+      {/* Country */}
+      <div className="econ-col-country">
+        {getCountryFlagSrc(event.countryCode) ? (
+          <img
+            className="econ-flag-img"
+            src={getCountryFlagSrc(event.countryCode)}
+            alt={event.countryCode}
+            width={16}
+            height={12}
+          />
+        ) : (
+          <span className="econ-flag-fallback">{event.countryCode}</span>
+        )}
+        <span className="econ-country-code" title={event.country}>
+          {event.countryCode}
+        </span>
+      </div>
+
+      {/* Importance */}
+      <div className="econ-col-impact">
+        <ImpactStars impact={event.impact} />
+      </div>
+
+      {/* Event name */}
+      <div className="econ-col-event">
+        <div className="econ-event-title" title={event.event}>
+          {event.event}
+        </div>
+      </div>
+
+      {/* Actual */}
+      <div className={`econ-col-value econ-actual tone-${tone}`}>
+        {displayValue(event.actual)}
+      </div>
+
+      {/* Forecast */}
+      <div className="econ-col-value econ-forecast">
+        {displayValue(event.forecast)}
+      </div>
+
+      {/* Previous */}
+      <div className="econ-col-value econ-previous">
+        {displayValue(event.previous)}
+      </div>
+
+      
     </li>
   );
 }
+
 
 /** Chip multi-select with flags */
 function MultiChipSelect<T extends string>({
@@ -432,7 +486,7 @@ export function EconomicCalendar() {
           options={COUNTRIES.map((c) => ({
             value: c.code,
             label: c.label,
-            emoji: getCountryFlagSrc(c.code), // used only as <img src>, not in summary text
+            emoji: getCountryFlagSrc(c.code),
           }))}
           selected={countries as Array<(typeof COUNTRIES)[number]['code']>}
           onChange={(next) => setCountries(next)}
@@ -443,7 +497,7 @@ export function EconomicCalendar() {
           kind="impact"
           options={IMPACT_OPTIONS.map((i) => ({
             value: i.value,
-            label: i.label, // Low / Medium / High
+            label: i.label,
           }))}
           selected={impacts}
           onChange={setImpacts}
@@ -547,16 +601,68 @@ export function EconomicCalendar() {
             <span>Try another country, date, or impact filter.</span>
           </div>
         ) : (
-          <ul className="econ-list">
-            {events.map((event, index) => (
-              <EventRow
-                key={event.id}
-                event={event}
-                index={index}
-                now={now}
-              />
-            ))}
-          </ul>
+          (() => {
+            const past = events.filter(
+              (e) => Date.parse(e.eventTime) < now.getTime(),
+            );
+            const upcoming = events.filter(
+              (e) => Date.parse(e.eventTime) >= now.getTime(),
+            );
+
+            return (
+              <div className="econ-table">
+                {/* Table header */}
+                <div className="econ-table-header">
+                  <div className="econ-col-time">Time</div>
+                  <div className="econ-col-country">Country</div>
+                  <div className="econ-col-impact">Impact</div>
+                  <div className="econ-col-event">Event</div>
+                  <div className="econ-col-value">Actual</div>
+                  <div className="econ-col-value">Forecast</div>
+                  <div className="econ-col-value">Previous</div>
+                </div>
+
+                <ul className="econ-list">
+                  {/* Past events */}
+                  {past.map((event, index) => (
+                    <EventRow
+                      key={event.id}
+                      event={event}
+                      index={index}
+                      now={now}
+                    />
+                  ))}
+
+                  {/* Current-time separator */}
+                  {upcoming.length > 0 && (
+                    <li className="econ-now-separator">
+                      <span className="econ-now-dot" />
+                      <span className="econ-now-label">
+                        NOW ·{' '}
+                        {new Intl.DateTimeFormat('en-US', {
+                          timeZone: 'America/New_York',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: false,
+                        }).format(now)}
+                      </span>
+                      <span className="econ-now-line" />
+                    </li>
+                  )}
+
+                  {/* Upcoming events */}
+                  {upcoming.map((event, index) => (
+                    <EventRow
+                      key={event.id}
+                      event={event}
+                      index={past.length + index}
+                      now={now}
+                    />
+                  ))}
+                </ul>
+              </div>
+            );
+          })()
         )}
       </div>
     </section>

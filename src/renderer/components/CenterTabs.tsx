@@ -6,7 +6,7 @@ import { SignalBoard } from './SignalBoard';
 import { SettingsPanel } from './SettingsPanel';
 import { MarketLeaders } from './MarketLeaders';
 import { EconomicCalendarTab } from './EconomicCalendarTab';
-
+import { HeatmapPanel } from './HeatmapPanel';
 import '../styles/analysis.css';
 import '../styles/signals.css';
 
@@ -77,6 +77,17 @@ export function CenterTabs() {
         >
           Economic Calendar
         </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={state.centerTab === 'heatmap'}
+          className={state.centerTab === 'heatmap' ? 'ct-tab is-active' : 'ct-tab'}
+          onClick={() => actions.setCenterTab('heatmap')}
+          >
+            Heatmap
+        </button>
+
         <button
           type="button"
           role="tab"
@@ -86,6 +97,7 @@ export function CenterTabs() {
         >
           Settings
         </button>
+
       </div>
       <div className="ct-panel" role="tabpanel">
         <div className="ct-view" key={state.centerTab}>
@@ -95,6 +107,7 @@ export function CenterTabs() {
           {state.centerTab === 'signals' && <SignalBoard />}
           {state.centerTab === 'MarketLeaders' && <MarketLeaders />}
           {state.centerTab === 'economic' && <EconomicCalendarTab />}
+          {state.centerTab === 'heatmap' && <HeatmapPanel />}
           {state.centerTab === 'settings' && <SettingsPanel />}
         </div>
       </div>

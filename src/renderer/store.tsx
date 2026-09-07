@@ -19,7 +19,7 @@ export interface AppState {
   quotes: Record<string, Quote>;
   holdings: Record<string, HoldingsResult>; // keyed by ETF symbol
   newsFilter: string; // 'all' or a watchlist symbol
-  centerTab: 'pulse' | 'news' | 'analysis' | 'signals' | 'MarketLeaders' | 'economic' | 'settings';
+  centerTab: 'pulse' | 'news' | 'analysis' | 'signals' | 'MarketLeaders' | 'economic' | 'heatmap' | 'settings';
   pinnedSymbols: string[];
   modalSymbol: string | null;
 }
